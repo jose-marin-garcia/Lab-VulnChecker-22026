@@ -6,13 +6,13 @@ Sistema integral para la visualización y gestión de vulnerabilidades. Arquitec
 
 ## 🏗️ Stack Tecnológico
 
-| Componente   | Tecnología                    |
-|-------------|-------------------------------|
-| Frontend    | React 19 + Vite 8 + Lucide    |
-| Backend     | Java 21 + Spring Boot 4.x     |
-| Base de datos | PostgreSQL 16 (Alpine)     |
-| Orquestación | Docker + Docker Compose     |
-| DevSecOps   | Jenkins, SonarQube, OWASP ZAP, Dependency Check, Grafana, Prometheus |
+| Componente    | Tecnología                                                           |
+| ------------- | -------------------------------------------------------------------- |
+| Frontend      | React 19 + Vite 8 + Lucide                                           |
+| Backend       | Java 21 + Spring Boot 4.x                                            |
+| Base de datos | PostgreSQL 16 (Alpine)                                               |
+| Orquestación  | Docker + Docker Compose                                              |
+| DevSecOps     | Jenkins, SonarQube, OWASP ZAP, Dependency Check, Grafana, Prometheus |
 
 ---
 
@@ -45,19 +45,19 @@ docker compose -f docker-compose_prod.yml up --build -d
 Incluye app, Jenkins, Grafana, Prometheus y SonarQube.
 
 ```bash
-docker compose up -d
+docker compose --profile devsecops up -d
 ```
 
-| Servicio   | Puerto | URL                     |
-|-----------|--------|-------------------------|
-| App frontend | 5173 | http://localhost:5173   |
-| App backend  | 8080 | http://localhost:8080   |
-| Jenkins   | 8081 | http://localhost:8081   |
-| Grafana   | 3000 | http://localhost:3000   |
-| Prometheus | 9090 | http://localhost:9090   |
-| SonarQube | 9000 | http://localhost:9000   |
-| OWASP ZAP (API) | 8090 | http://localhost:8090   |
-| OWASP Dependency Check | — | Contenedor CLI (`docker exec vuln-dependency-check ...`) |
+| Servicio               | Puerto | URL                                                      |
+| ---------------------- | ------ | -------------------------------------------------------- |
+| App frontend           | 5173   | http://localhost:5173                                    |
+| App backend            | 8080   | http://localhost:8080                                    |
+| Jenkins                | 8081   | http://localhost:8081                                    |
+| Grafana                | 3000   | http://localhost:3000                                    |
+| Prometheus             | 9090   | http://localhost:9090                                    |
+| SonarQube              | 9000   | http://localhost:9000                                    |
+| OWASP ZAP (API)        | 8090   | http://localhost:8090                                    |
+| OWASP Dependency Check | —      | Contenedor CLI (`docker exec vuln-dependency-check ...`) |
 
 ---
 
@@ -82,15 +82,15 @@ Mínimo: `DB_USERNAME`, `DB_PASSWORD`. Opcional: `GRAFANA_ADMIN_USER`, `GRAFANA_
 
 Con el entorno levantado (modo desarrollo o stack completo):
 
-- **App:** http://localhost:5173  
-- **API:** http://localhost:8080/api  
+- **App:** http://localhost:5173
+- **API:** http://localhost:8080/api
 
 ### Credenciales de prueba (seed)
 
-| Campo        | Valor          |
-|-------------|----------------|
-| Usuario     | `admin.seguridad` (dominio @usach.cl se añade automáticamente) |
-| Contraseña  | `admin123`     |
+| Campo      | Valor                                                          |
+| ---------- | -------------------------------------------------------------- |
+| Usuario    | `admin.seguridad` (dominio @usach.cl se añade automáticamente) |
+| Contraseña | `admin123`                                                     |
 
 ---
 
@@ -107,16 +107,16 @@ Cada servicio tiene dos variantes:
 
 El pipeline de Jenkins cubre el ciclo DevSecOps con herramientas **100 % gratuitas y open source** (sin licencias ni suscripciones de pago):
 
-| Fase        | Herramienta / práctica |
-|------------|-------------------------|
-| Secretos   | **Gitleaks** (detección en repo) |
-| Build      | Maven, npm |
-| Test       | JUnit |
-| SAST       | **SonarQube** (Community Edition) |
-| SCA        | **OWASP Dependency Check** (backend y frontend) |
-| Imágenes   | **Trivy** (vulnerabilidades en imágenes Docker) |
-| DAST       | **OWASP ZAP** (escaneo dinámico contra la app) |
-| Operate    | **Grafana** + **Prometheus** |
+| Fase     | Herramienta / práctica                          |
+| -------- | ----------------------------------------------- |
+| Secretos | **Gitleaks** (detección en repo)                |
+| Build    | Maven, npm                                      |
+| Test     | JUnit                                           |
+| SAST     | **SonarQube** (Community Edition)               |
+| SCA      | **OWASP Dependency Check** (backend y frontend) |
+| Imágenes | **Trivy** (vulnerabilidades en imágenes Docker) |
+| DAST     | **OWASP ZAP** (escaneo dinámico contra la app)  |
+| Operate  | **Grafana** + **Prometheus**                    |
 
 Cobertura del ciclo: **[docs/DEVSECOPS_CICLO.md](docs/DEVSECOPS_CICLO.md)**. Configuración del pipeline y reportes: **[docs/JENKINS_PIPELINE.md](docs/JENKINS_PIPELINE.md)**.
 
@@ -135,8 +135,8 @@ Detalle y opciones para TLS/producción: **[docs/SEGURIDAD_RED_CONTENEDORES.md](
 
 ## 📋 Comandos útiles
 
-| Acción                  | Comando |
-|-------------------------|--------|
-| Logs del backend        | `docker logs -f vuln-backend` |
-| Reiniciar y borrar DB   | `docker compose down -v` |
-| Consola PostgreSQL      | `docker exec -it vuln-db psql -U admin -d vulncheck` |
+| Acción                | Comando                                              |
+| --------------------- | ---------------------------------------------------- |
+| Logs del backend      | `docker logs -f vuln-backend`                        |
+| Reiniciar y borrar DB | `docker compose down -v`                             |
+| Consola PostgreSQL    | `docker exec -it vuln-db psql -U admin -d vulncheck` |
