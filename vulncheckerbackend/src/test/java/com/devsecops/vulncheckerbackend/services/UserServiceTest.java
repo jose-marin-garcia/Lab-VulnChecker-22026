@@ -31,6 +31,7 @@ class UserServiceTest {
     @Test
     void login_returnsUser_whenEmailExistsAndPasswordMatches() {
         UserEntity user = TestDataFactory.user(1L);
+        user.setActive(true);
         user.setPassword("encoded");
 
         when(userRepository.findByEmail("admin.seguridad@usach.cl")).thenReturn(Optional.of(user));
@@ -45,6 +46,7 @@ class UserServiceTest {
     @Test
     void login_returnsEmpty_whenPasswordDoesNotMatch() {
         UserEntity user = TestDataFactory.user(1L);
+        user.setActive(true);
         user.setPassword("encoded");
 
         when(userRepository.findByEmail("admin.seguridad@usach.cl")).thenReturn(Optional.of(user));
