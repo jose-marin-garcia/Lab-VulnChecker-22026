@@ -10,6 +10,7 @@ import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotReposi
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -33,7 +34,11 @@ public class WazuhService {
     private final VulnerabilitySnapshotRepository snapshotRepository;
     private final Executor taskExecutor;
 
-    private static final String VULN_INDEX = "wazuh-states-vulnerabilities-*";
+    @Value("${wazuh.index.vulnerabilities}")
+    private String vulnIndex;
+
+    @Value("${wazuh.index.monitoring}")
+    private String monitoringIndex;
 
     public WazuhService(SshTunnelManager tunnelManager,
                         @Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
@@ -151,7 +156,7 @@ public class WazuhService {
         headers.set("Authorization", "Basic " + credentials);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        String url = wazuhBaseUrl() + "/" + VULN_INDEX + "/_search";
+        String url = wazuhBaseUrl() + "/" + vulnIndex + "/_search";
 
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 url, HttpMethod.POST, new HttpEntity<>(queryBody, headers), 
@@ -165,7 +170,7 @@ public class WazuhService {
         // Abrimos túnel solo para esta consulta rápida
         Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
         try {
-            String url = wazuhBaseUrl() + "/" + VULN_INDEX + "/_count";
+            String url = wazuhBaseUrl() + "/" + vulnIndex + "/_count";
             
             HttpHeaders headers = new HttpHeaders();
             String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
@@ -243,6 +248,8 @@ public class WazuhService {
                 // Abrimos túnel específico para este hilo
                 Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
                 try {
+                    Map<String, String> agentGroupsDict = fetchAgentGroups(creds);
+
                     while (hasMore) {
                         String searchAfterClause = (lastSortValues != null) 
                             ? ", \"search_after\": [%s, \"%s\"]".formatted(lastSortValues[0], lastSortValues[1]) 
@@ -270,7 +277,7 @@ public class WazuhService {
                                 hasMore = false;
                             } else {
                                 // PROCESAR Y GUARDAR EN BLOQUE
-                                processAndSaveBatch(hits, countersByAgent);
+                                processAndSaveBatch(hits, countersByAgent, agentGroupsDict);
                                 
                                 totalProcesados += hits.size();
                                 lastSortValues = ((List<Object>) hits.get(hits.size() - 1).get("sort")).toArray();
@@ -289,7 +296,7 @@ public class WazuhService {
         });
     }
 
-    private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent) {
+    private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent, Map<String, String> agentGroupsDict) {
         List<VulnerabilityEntity> entitiesToSave = new java.util.ArrayList<>();
 
         for (Map<String, Object> hit : hits) {
@@ -313,6 +320,13 @@ public class WazuhService {
                 entity.setCve(cve);
                 entity.setAgentId(agentId);
                 entity.setAgentName((String) a.get("name"));
+                
+                String assignedGroup = agentGroupsDict.get(agentId);
+                if (assignedGroup == null || assignedGroup.isBlank()) {
+                    assignedGroup = "default";
+                }
+                entity.setAgentGroup(assignedGroup);
+
                 entity.setPackageName(pkgName);
                 entity.setPackageVersion((String) p.get("version"));
                 entity.setSeverity((String) v.get("severity"));
@@ -356,5 +370,60 @@ public class WazuhService {
 
     private String wazuhBaseUrl() {
         return "https://127.0.0.1:" + tunnelManager.getLocalPort();
+    }
+
+    private Map<String, String> fetchAgentGroups(WazuhCredentials creds) {
+        Map<String, String> agentGroups = new java.util.HashMap<>();
+        try {
+            String queryBody = """
+                    {
+                      "size": 10000,
+                      "query": { "match_all": {} },
+                      "_source": ["id", "group"]
+                    }
+                    """;
+            
+            String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
+            String credentials = java.util.Base64.getEncoder().encodeToString(
+                    auth.getBytes(java.nio.charset.StandardCharsets.UTF_8)
+            );
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("Authorization", "Basic " + credentials);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            // Consultamos el índice de monitoreo de agentes en vez de la API
+            String url = wazuhBaseUrl() + "/" + monitoringIndex + "/_search";
+
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    url, HttpMethod.POST, new HttpEntity<>(queryBody, headers), Map.class
+            );
+            
+            Map<String, Object> body = response.getBody();
+            if (body != null && body.containsKey("hits")) {
+                Map<String, Object> hitsObj = (Map<String, Object>) body.get("hits");
+                if (hitsObj.containsKey("hits")) {
+                    List<Map<String, Object>> hitsList = (List<Map<String, Object>>) hitsObj.get("hits");
+                    for (Map<String, Object> hit : hitsList) {
+                        Map<String, Object> source = (Map<String, Object>) hit.get("_source");
+                        if (source != null && source.containsKey("id")) {
+                            String id = source.get("id").toString();
+                            Object groupObj = source.get("group");
+                            if (groupObj instanceof java.util.List list) {
+                                agentGroups.put(id, String.join(",", list));
+                            } else if (groupObj != null) {
+                                agentGroups.put(id, groupObj.toString());
+                            } else {
+                                agentGroups.put(id, "default");
+                            }
+                        }
+                    }
+                }
+            }
+            log.info("Extraídos grupos de {} agentes exitosamente desde Elasticsearch", agentGroups.size());
+        } catch (Exception e) {
+            log.error("Error obteniendo grupos de agentes desde Elasticsearch: {}", e.getMessage());
+        }
+        return agentGroups;
     }
 }

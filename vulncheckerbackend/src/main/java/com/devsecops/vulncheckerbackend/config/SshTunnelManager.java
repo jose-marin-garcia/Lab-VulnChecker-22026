@@ -2,6 +2,7 @@ package com.devsecops.vulncheckerbackend.config;
 
 import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.Session;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.Properties;
@@ -10,8 +11,12 @@ import java.util.Properties;
 public class SshTunnelManager {
 
     private static final String WAZUH_HOST     = "127.0.0.1";   // host local dentro del servidor SSH
-    private static final int    WAZUH_API_PORT = 9200;       // puerto por defecto de Wazuh API
-    private static final int    LOCAL_PORT     = 9201;        // puerto local del tunnel
+    
+    @Value("${wazuh.indexer.port}")
+    private int wazuhApiPort;       // puerto por defecto de Wazuh Indexer
+    
+    @Value("${wazuh.tunnel.local-port}")
+    private int localPort;        // puerto local del tunnel (Indexer)
 
     /**
      * Abre un SSH tunnel hacia el servidor donde corre Wazuh.
@@ -34,8 +39,8 @@ public class SshTunnelManager {
 
         session.connect(10_000); // timeout 10 s
 
-        // forward: localhost:LOCAL_PORT → WAZUH_HOST:WAZUH_API_PORT  (dentro del servidor SSH)
-        session.setPortForwardingL(LOCAL_PORT, WAZUH_HOST, WAZUH_API_PORT);
+        // forward: localhost:localPort → WAZUH_HOST:wazuhApiPort  (dentro del servidor SSH)
+        session.setPortForwardingL(localPort, WAZUH_HOST, wazuhApiPort);
 
         return session;
     }
@@ -48,6 +53,6 @@ public class SshTunnelManager {
     }
 
     public int getLocalPort() {
-        return LOCAL_PORT;
+        return localPort;
     }
 }

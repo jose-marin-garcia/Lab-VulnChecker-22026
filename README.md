@@ -76,7 +76,7 @@ Copia `.env.example` a `.env` en la raíz y ajusta valores (no subas `.env` al r
 cp .env.example .env
 ```
 
-Mínimo: `DB_USERNAME`, `DB_PASSWORD`. Opcional: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `SONAR_DB_PASSWORD`. En producción usa contraseñas fuertes y distintas.
+Mínimo: `DB_USERNAME`, `DB_PASSWORD`, y las 4 variables de configuración de Wazuh (`WAZUH_INDEXER_PORT`, `WAZUH_LOCAL_TUNNEL_PORT`, `WAZUH_VULN_INDEX`, `WAZUH_MONITORING_INDEX`). Opcional: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `SONAR_DB_PASSWORD`. En producción usa contraseñas fuertes y distintas.
 
 ### Acceso
 

@@ -48,6 +48,10 @@ services:
       - DB_O_LOCALHOST=db
       - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vulncheck
       - SPRING_FLYWAY_URL=jdbc:postgresql://db:5432/vulncheck
+      - WAZUH_INDEXER_PORT=${WAZUH_INDEXER_PORT}
+      - WAZUH_LOCAL_TUNNEL_PORT=${WAZUH_LOCAL_TUNNEL_PORT}
+      - WAZUH_VULN_INDEX=${WAZUH_VULN_INDEX}
+      - WAZUH_MONITORING_INDEX=${WAZUH_MONITORING_INDEX}
     command: /app/mvnw spring-boot:run
     depends_on:
       db:
