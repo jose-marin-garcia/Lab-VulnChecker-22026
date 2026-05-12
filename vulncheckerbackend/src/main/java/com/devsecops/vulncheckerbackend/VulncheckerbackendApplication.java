@@ -8,8 +8,18 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
+import jakarta.annotation.PostConstruct;
+import java.util.TimeZone;
+
 @SpringBootApplication
 public class VulncheckerbackendApplication {
+
+    @PostConstruct
+    public void init() {
+        // Forzar el huso horario de todo el backend a la hora oficial de Chile.
+        // Esto gestiona automáticamente los cambios de hora (verano/invierno).
+        TimeZone.setDefault(TimeZone.getTimeZone("America/Santiago"));
+    }
 
     public static void main(String[] args) {
         SpringApplication.run(VulncheckerbackendApplication.class, args);

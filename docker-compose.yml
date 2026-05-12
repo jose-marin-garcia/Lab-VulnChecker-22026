@@ -12,6 +12,7 @@ services:
       - POSTGRES_DB=vulncheck
       - POSTGRES_USER=${DB_USERNAME:-vulnuser}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-vulnpass}
+      - TZ=America/Santiago
     ports:
       - '127.0.0.1:5433:5432'
     healthcheck:
@@ -52,6 +53,7 @@ services:
       - WAZUH_LOCAL_TUNNEL_PORT=${WAZUH_LOCAL_TUNNEL_PORT}
       - WAZUH_VULN_INDEX=${WAZUH_VULN_INDEX}
       - WAZUH_MONITORING_INDEX=${WAZUH_MONITORING_INDEX}
+      - TZ=America/Santiago
     command: /app/mvnw spring-boot:run
     depends_on:
       db:

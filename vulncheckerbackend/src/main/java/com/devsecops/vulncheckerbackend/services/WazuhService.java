@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.Base64;
 import java.util.List;
@@ -245,6 +246,7 @@ public class WazuhService {
             Map<String, SnapshotCounter> countersByAgent = new java.util.HashMap<>();
 
             try {
+                LocalDateTime currentSyncTime = LocalDateTime.now();
                 // Abrimos túnel específico para este hilo
                 Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
                 try {
@@ -277,7 +279,7 @@ public class WazuhService {
                                 hasMore = false;
                             } else {
                                 // PROCESAR Y GUARDAR EN BLOQUE
-                                processAndSaveBatch(hits, countersByAgent, agentGroupsDict);
+                                processAndSaveBatch(hits, countersByAgent, agentGroupsDict, currentSyncTime);
                                 
                                 totalProcesados += hits.size();
                                 lastSortValues = ((List<Object>) hits.get(hits.size() - 1).get("sort")).toArray();
@@ -287,6 +289,14 @@ public class WazuhService {
                     }
                 } finally {
                     countersByAgent.values().forEach(this::saveSnapshot);
+                    
+                    // Fase Sweep: Marcar como resueltas las vulnerabilidades que no vimos hoy
+                    if (!countersByAgent.isEmpty()) {
+                        List<String> activeAgents = new java.util.ArrayList<>(countersByAgent.keySet());
+                        vulnerabilityRepository.markAsResolvedForAgentsBefore(activeAgents, currentSyncTime, LocalDateTime.now());
+                        log.info("Fase Sweep completada: vulnerabilidades antiguas marcadas como Resolved.");
+                    }
+                    
                     tunnelManager.closeTunnel(session);
                     log.info("FINALIZADO: {} registros guardados de {}", totalProcesados, creds.sshHost());
                 }
@@ -296,7 +306,7 @@ public class WazuhService {
         });
     }
 
-    private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent, Map<String, String> agentGroupsDict) {
+    private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent, Map<String, String> agentGroupsDict, LocalDateTime currentSyncTime) {
         List<VulnerabilityEntity> entitiesToSave = new java.util.ArrayList<>();
 
         for (Map<String, Object> hit : hits) {
@@ -312,13 +322,22 @@ public class WazuhService {
 
                 countersByAgent.computeIfAbsent(agentId, ignored -> new SnapshotCounter()).count(source);
 
-                if (vulnerabilityRepository.existsByCveAndAgentIdAndPackageName(cve, agentId, pkgName)) {
-                    continue;
+                java.util.Optional<VulnerabilityEntity> optEntity = vulnerabilityRepository.findByCveAndAgentIdAndPackageName(cve, agentId, pkgName);
+                VulnerabilityEntity entity;
+                
+                if (optEntity.isPresent()) {
+                    entity = optEntity.get();
+                    // Si ya existía, la actualizamos para que no la barra el Sweep
+                    entity.setLastSync(currentSyncTime);
+                    entity.setStatus("Active");
+                    entity.setResolvedAt(null);
+                } else {
+                    // Si no existía, la creamos nueva
+                    entity = new VulnerabilityEntity();
+                    entity.setCve(cve);
+                    entity.setAgentId(agentId);
+                    entity.setLastSync(currentSyncTime);
                 }
-
-                VulnerabilityEntity entity = new VulnerabilityEntity();
-                entity.setCve(cve);
-                entity.setAgentId(agentId);
                 entity.setAgentName((String) a.get("name"));
                 
                 String assignedGroup = agentGroupsDict.get(agentId);
