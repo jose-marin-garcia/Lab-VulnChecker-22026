@@ -8,8 +8,10 @@ import com.devsecops.vulncheckerbackend.repositories.InfrastructureCredentialRep
 import com.devsecops.vulncheckerbackend.services.WazuhService;
 
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
 import org.slf4j.Logger;
 
 import java.util.Base64;
@@ -192,6 +194,9 @@ public class WazuhVulnController {
             customMessage = "No se pudo establecer conexión SSH (Timeout). Verifica que la IP sea correcta y el puerto 22 esté abierto.";
         } else if (e.getMessage() != null && e.getMessage().contains("Auth fail")) {
             customMessage = "Credenciales SSH incorrectas.";
+        } else if (e instanceof HttpClientErrorException httpEx
+                   && (httpEx.getStatusCode() == HttpStatus.UNAUTHORIZED || httpEx.getStatusCode() == HttpStatus.FORBIDDEN)) {
+            customMessage = "No se pudieron obtener los datos. Es probable que la contraseña de Wazuh esté desactualizada. Verifica las credenciales de Wazuh en Ajustes.";
         }
 
         return ResponseEntity.status(500).body(Map.of(

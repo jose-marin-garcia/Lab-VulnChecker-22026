@@ -201,6 +201,16 @@
     color: white;
 }
 
+.consumer-error {
+    background-color: #2d1b1b;
+    border: 1px solid #ff4d4d;
+    color: #ff8a8a;
+    padding: 1rem 1.2rem;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
 .add-server-row-btn {
     display: flex;
     align-items: center;

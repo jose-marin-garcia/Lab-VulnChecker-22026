@@ -16,6 +16,7 @@ const Consumer = () => {
     const [loading, setLoading] = useState(false);
     const [progressCount, setProgressCount] = useState(0);
     const [totalTarget, setTotalTarget] = useState(0);
+    const [error, setError] = useState(null);
 
     // Polling de progreso
     useEffect(() => {
@@ -82,7 +83,8 @@ const Consumer = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setProgressCount(0); // Reiniciamos contador visual
+        setProgressCount(0);
+        setError(null);
         
         let totalCule = 0;
         const appAuth = localStorage.getItem('auth_basic');
@@ -101,25 +103,41 @@ const Consumer = () => {
                         infrastructureCredentialId: parseInt(server.credentialId)
                     })
                 });
+
+                if (!countRes.ok) {
+                    const errorData = await countRes.json().catch(() => ({}));
+                    setError(errorData.message || 'Error al conectar con el servidor. Verifica las credenciales.');
+                    setLoading(false);
+                    return;
+                }
+
                 const data = await countRes.json();
                 totalCule += (data.total || 0);
                 setTotalTarget(totalCule);
 
                 // 2. Disparar consumo
-                fetch(`${API_BASE_URL}/api/vulns/consume`, {
+                const consumeRes = await fetch(`${API_BASE_URL}/api/vulns/consume`, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': appAuth 
+                        'Authorization': appAuth
                     },
                     body: JSON.stringify({
                         ip: server.ip,
                         infrastructureCredentialId: parseInt(server.credentialId)
                     })
                 });
+
+                if (!consumeRes.ok) {
+                    const errorData = await consumeRes.json().catch(() => ({}));
+                    setError(errorData.message || 'Error al iniciar la sincronización.');
+                    setLoading(false);
+                    return;
+                }
             }
-        } catch (error) {
-            console.error("Error iniciando consumo:", error);
+        } catch (err) {
+            console.error("Error iniciando consumo:", err);
+            setError('Error de conexión con el servidor.');
             setLoading(false);
         }
     };
@@ -208,6 +226,12 @@ const Consumer = () => {
                                 </div>
                             ))}
                         </div>
+
+                                                {error && (
+                            <div className="consumer-error">
+                                <span>{error}</span>
+                            </div>
+                        )}
 
                         {!loading && (
                             <button type="button" className="add-server-row-btn" onClick={addServer}>
