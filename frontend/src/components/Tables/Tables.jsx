@@ -1,362 +1,720 @@
-import { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, RefreshCcw, Search } from 'lucide-react';
-import { buildApiUrl } from '../../config/api';
-import './Tables.css';
+import { useCallback, useEffect, useState, useRef } from "react";
+import { AlertCircle, RefreshCcw, Search, Filter } from "lucide-react";
+import { buildApiUrl } from "../../config/api";
+import "./Tables.css";
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/vulnerabilities`;
 const FILTERS_URL = `${API_BASE_URL}/api/vulnerabilities/filters`;
 const PAGE_SIZE = 12;
 
 const formatDate = (dateValue) => {
-    if (!dateValue) return '-';
-    const parsedDate = new Date(dateValue);
-    if (Number.isNaN(parsedDate.getTime())) return dateValue;
-    return parsedDate.toLocaleString('es-CL');
+  if (!dateValue) return "-";
+  const parsedDate = new Date(dateValue);
+  if (Number.isNaN(parsedDate.getTime())) return dateValue;
+  return parsedDate.toLocaleString("es-CL");
 };
 
 const truncateText = (value, max = 120) => {
-    if (!value) return '-';
-    return value.length > max ? `${value.slice(0, max)}...` : value;
+  if (!value) return "-";
+  return value.length > max ? `${value.slice(0, max)}...` : value;
 };
 
 const Tables = ({
-    title = 'Explorador de Activos',
-    subtitle = 'Visualización en crudo de vulnerabilidades y paquetes detectados.',
-    defaultHighPriorityOnly = false,
-    lockHighPriority = false,
-    hideSeverityFilter = false,
+  title = "Explorador de Activos",
+  subtitle = "Visualización en crudo de vulnerabilidades y paquetes detectados.",
+  defaultHighPriorityOnly = false,
+  lockHighPriority = false,
+  hideSeverityFilter = false,
 }) => {
-    const [rows, setRows] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [search, setSearch] = useState('');
-    const [severityFilter, setSeverityFilter] = useState('all');
-    const [agentFilter, setAgentFilter] = useState('all');
-    const [highPriorityOnly, setHighPriorityOnly] = useState(defaultHighPriorityOnly);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortConfig, setSortConfig] = useState({ key: 'detectionTime', direction: 'desc' });
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalRecords, setTotalRecords] = useState(0);
-    const [pageInput, setPageInput] = useState('');
-    const [severityOptions, setSeverityOptions] = useState([]);
-    const [agentOptions, setAgentOptions] = useState([]);
-    const effectiveHighPriorityOnly = lockHighPriority || highPriorityOnly;
+  const defaultFilters = {
+    search: "",
+    severity: "all",
+    status: "all",
+    startDate: "",
+    endDate: "",
+    id: "",
+    cvss: { min: 0, max: 10 },
+    agent: "",
+    cve: "",
+    package: "",
+    description: "",
+  };
 
-    useEffect(() => {
-        const loadFilters = async () => {
-            try {
-                const res = await fetch(FILTERS_URL);
-                if (!res.ok) return;
-                const json = await res.json();
-                setSeverityOptions(Array.isArray(json?.severities) ? json.severities : []);
-                setAgentOptions(Array.isArray(json?.agentIds) ? json.agentIds : []);
-            } catch {
-                // keep default empty options
-            }
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Single source of truth for applied filters that trigger the API
+  const [appliedFilters, setAppliedFilters] = useState(defaultFilters);
+  // Local state for popover inputs
+  const [localFilters, setLocalFilters] = useState(defaultFilters);
+
+  const [openFilterPopover, setOpenFilterPopover] = useState(null);
+  const popoverRef = useRef(null);
+
+  const [highPriorityOnly, setHighPriorityOnly] = useState(
+    defaultHighPriorityOnly,
+  );
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortConfig, setSortConfig] = useState({
+    key: "detectionTime",
+    direction: "desc",
+  });
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [pageInput, setPageInput] = useState("");
+  const [severityOptions, setSeverityOptions] = useState([]);
+  const effectiveHighPriorityOnly = lockHighPriority || highPriorityOnly;
+
+  useEffect(() => {
+    const loadFilters = async () => {
+      try {
+        const res = await fetch(FILTERS_URL);
+        if (!res.ok) return;
+        const json = await res.json();
+        setSeverityOptions(
+          Array.isArray(json?.severities) ? json.severities : [],
+        );
+      } catch {
+        // keep default empty options
+      }
+    };
+    loadFilters();
+  }, []);
+
+  // Click outside handler for popovers
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target)) {
+        setOpenFilterPopover(null);
+        // Reset local filters to applied filters when closing without saving
+        setLocalFilters(appliedFilters);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [appliedFilters]);
+
+  const applyFilter = () => {
+    setAppliedFilters({ ...localFilters });
+    setOpenFilterPopover(null);
+    setCurrentPage(1);
+  };
+
+  const clearFilter = (key) => {
+    if (key === "date") {
+      setLocalFilters((prev) => ({ ...prev, startDate: "", endDate: "" }));
+      setAppliedFilters((prev) => ({ ...prev, startDate: "", endDate: "" }));
+    } else {
+      const resetVal =
+        key === "cvss"
+          ? { min: 0, max: 10 }
+          : key === "severity" || key === "status"
+            ? "all"
+            : "";
+      setLocalFilters((prev) => ({ ...prev, [key]: resetVal }));
+      setAppliedFilters((prev) => ({ ...prev, [key]: resetVal }));
+    }
+    setOpenFilterPopover(null);
+    setCurrentPage(1);
+  };
+
+  const clearAllFilters = () => {
+    setLocalFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
+    setOpenFilterPopover(null);
+    setCurrentPage(1);
+  };
+
+  const applyGlobalSearch = () => {
+    setAppliedFilters({ ...appliedFilters, search: localFilters.search });
+    setCurrentPage(1);
+  };
+
+  const fetchVulnerabilities = useCallback(async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(currentPage - 1));
+      params.set("size", String(PAGE_SIZE));
+
+      if (appliedFilters.severity !== "all") {
+        params.set("severity", appliedFilters.severity);
+      }
+      if (appliedFilters.status !== "all") {
+        params.set("status", appliedFilters.status);
+      }
+      if (appliedFilters.startDate) {
+        params.set("startDate", appliedFilters.startDate);
+      }
+      if (appliedFilters.endDate) {
+        params.set("endDate", appliedFilters.endDate);
+      }
+      if (appliedFilters.id) {
+        params.set("filterId", appliedFilters.id);
+      }
+      if (appliedFilters.cvss.min > 0) {
+        params.set("minCvss", String(appliedFilters.cvss.min));
+      }
+      if (appliedFilters.cvss.max < 10) {
+        params.set("maxCvss", String(appliedFilters.cvss.max));
+      }
+      if (appliedFilters.agent && appliedFilters.agent !== "all") {
+        params.set("agentId", appliedFilters.agent);
+      }
+      if (appliedFilters.cve) {
+        params.set("cve", appliedFilters.cve);
+      }
+      if (appliedFilters.package) {
+        params.set("packageName", appliedFilters.package);
+      }
+      if (appliedFilters.description) {
+        params.set("description", appliedFilters.description);
+      }
+      if (appliedFilters.search.trim()) {
+        params.set("search", appliedFilters.search.trim());
+      }
+      if (effectiveHighPriorityOnly) {
+        params.set("highPriorityOnly", "true");
+      }
+
+      params.set("sortKey", sortConfig.key);
+      params.set("sortDir", sortConfig.direction);
+
+      const response = await fetch(`${API_URL}?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      const content = Array.isArray(data)
+        ? data
+        : data && Array.isArray(data.content)
+          ? data.content
+          : [];
+
+      setRows(Array.isArray(content) ? content : []);
+      setTotalPages(typeof data?.totalPages === "number" ? data.totalPages : 1);
+      setTotalRecords(
+        typeof data?.totalElements === "number"
+          ? data.totalElements
+          : Array.isArray(content)
+            ? content.length
+            : 0,
+      );
+    } catch (fetchError) {
+      console.error("Error al obtener vulnerabilidades:", fetchError);
+      setError("No se pudo cargar la tabla de activos desde el backend.");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    appliedFilters,
+    currentPage,
+    effectiveHighPriorityOnly,
+    sortConfig.direction,
+    sortConfig.key,
+  ]);
+
+  useEffect(() => {
+    fetchVulnerabilities();
+  }, [fetchVulnerabilities]);
+
+  const handleSort = (key) => {
+    const defaultDirection =
+      key === "id" || key === "cvss3Score" || key === "detectionTime"
+        ? "desc"
+        : "asc";
+    setSortConfig((previousSort) => {
+      if (previousSort.key === key) {
+        return {
+          key,
+          direction: previousSort.direction === "asc" ? "desc" : "asc",
         };
-        loadFilters();
-    }, []);
+      }
+      return { key, direction: defaultDirection };
+    });
+    setCurrentPage(1);
+  };
 
-    const fetchVulnerabilities = useCallback(async () => {
-        setLoading(true);
-        setError('');
+  const getSortIndicator = (key) => {
+    if (sortConfig.key !== key) return "↕";
+    return sortConfig.direction === "asc" ? "↑" : "↓";
+  };
 
-        try {
-            const params = new URLSearchParams();
-            params.set('page', String(currentPage - 1));
-            params.set('size', String(PAGE_SIZE));
-
-            if (severityFilter !== 'all') {
-                params.set('severity', severityFilter);
-            }
-            if (agentFilter !== 'all') {
-                params.set('agentId', agentFilter);
-            }
-            if (search.trim()) {
-                params.set('search', search.trim());
-            }
-            if (effectiveHighPriorityOnly) {
-                params.set('highPriorityOnly', 'true');
-            }
-
-            params.set('sortKey', sortConfig.key);
-            params.set('sortDir', sortConfig.direction);
-
-            const response = await fetch(`${API_URL}?${params.toString()}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-
-            const data = await response.json();
-            const content = Array.isArray(data)
-                ? data
-                : (data && Array.isArray(data.content) ? data.content : []);
-
-            setRows(Array.isArray(content) ? content : []);
-            setTotalPages(typeof data?.totalPages === 'number' ? data.totalPages : 1);
-            setTotalRecords(typeof data?.totalElements === 'number' ? data.totalElements : (Array.isArray(content) ? content.length : 0));
-        } catch (fetchError) {
-            console.error('Error al obtener vulnerabilidades:', fetchError);
-            setError('No se pudo cargar la tabla de activos desde el backend.');
-        } finally {
-            setLoading(false);
-        }
-    }, [agentFilter, currentPage, effectiveHighPriorityOnly, search, severityFilter, sortConfig.direction, sortConfig.key]);
-
-    useEffect(() => {
-        fetchVulnerabilities();
-    }, [fetchVulnerabilities]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [search, severityFilter, agentFilter, effectiveHighPriorityOnly]);
-
-    const handleSort = (key) => {
-        const defaultDirection = key === 'id' || key === 'cvss3Score' || key === 'detectionTime' ? 'desc' : 'asc';
-
-        setSortConfig((previousSort) => {
-            if (previousSort.key === key) {
-                return { key, direction: previousSort.direction === 'asc' ? 'desc' : 'asc' };
-            }
-            return { key, direction: defaultDirection };
-        });
-        setCurrentPage(1);
-    };
-
-    const getSortIndicator = (key) => {
-        if (sortConfig.key !== key) return '↕';
-        return sortConfig.direction === 'asc' ? '↑' : '↓';
-    };
-
-    const paginatedRows = rows;
-
+  const isFilterActive = (filterKey) => {
+    if (filterKey === "cvss")
+      return appliedFilters.cvss.min > 0 || appliedFilters.cvss.max < 10;
+    if (filterKey === "date")
+      return !!appliedFilters.startDate || !!appliedFilters.endDate;
     return (
-        <div className="tables-container">
-            <main className="tables-content">
-                <header className="tables-header">
-                    <div>
-                        <h1>{title}</h1>
-                        <p>{subtitle}</p>
-                    </div>
-                    <div className="tables-header-actions">
-                        {!lockHighPriority && (
-                            <button
-                                className={`priority-toggle ${effectiveHighPriorityOnly ? 'active' : ''}`}
-                                onClick={() => setHighPriorityOnly((previousValue) => !previousValue)}
-                            >
-                                Alta prioridad {effectiveHighPriorityOnly ? 'ON' : 'OFF'}
-                            </button>
-                        )}
-                        <button className="refresh-button" onClick={fetchVulnerabilities} disabled={loading}>
-                            <RefreshCcw size={16} />
-                            {loading ? 'Actualizando...' : 'Actualizar'}
-                        </button>
-                    </div>
-                </header>
-
-                <section className={`tables-filters ${hideSeverityFilter ? 'compact' : ''}`}>
-                    <label className="search-input-wrapper">
-                        <Search size={16} />
-                        <input
-                            type="text"
-                            placeholder="Buscar por CVE, agente, paquete, estado..."
-                            value={search}
-                            onChange={(event) => setSearch(event.target.value)}
-                        />
-                    </label>
-
-                    {!hideSeverityFilter && (
-                        <select value={severityFilter} onChange={(event) => setSeverityFilter(event.target.value)}>
-                            <option value="all">Todas las severidades</option>
-                            {severityOptions.map((severity) => (
-                                <option key={severity} value={severity}>
-                                    {severity}
-                                </option>
-                            ))}
-                        </select>
-                    )}
-
-                    <select value={agentFilter} onChange={(event) => setAgentFilter(event.target.value)}>
-                        <option value="all">Todos los agentes</option>
-                        {agentOptions.map((agent) => (
-                            <option key={agent} value={agent}>
-                                {agent}
-                            </option>
-                        ))}
-                    </select>
-                </section>
-
-                {error && (
-                    <div className="tables-error">
-                        <AlertCircle size={18} />
-                        <span>{error}</span>
-                    </div>
-                )}
-
-                <section className="tables-card">
-                    {loading ? (
-                        <div className="tables-state">Cargando datos...</div>
-                    ) : paginatedRows.length === 0 ? (
-                        <div className="tables-state">No se encontraron registros con esos filtros.</div>
-                    ) : (
-                        <div className="tables-wrapper">
-                            <table className="assets-table">
-                                <thead>
-                                    <tr>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'id' ? 'active' : ''}`}
-                                                onClick={() => handleSort('id')}
-                                            >
-                                                <span>ID</span>
-                                                <span className="sort-indicator">{getSortIndicator('id')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'agentId' ? 'active' : ''}`}
-                                                onClick={() => handleSort('agentId')}
-                                            >
-                                                <span>Agente</span>
-                                                <span className="sort-indicator">{getSortIndicator('agentId')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'cve' ? 'active' : ''}`}
-                                                onClick={() => handleSort('cve')}
-                                            >
-                                                <span>CVE</span>
-                                                <span className="sort-indicator">{getSortIndicator('cve')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'severity' ? 'active' : ''}`}
-                                                onClick={() => handleSort('severity')}
-                                            >
-                                                <span>Severidad</span>
-                                                <span className="sort-indicator">{getSortIndicator('severity')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'cvss3Score' ? 'active' : ''}`}
-                                                onClick={() => handleSort('cvss3Score')}
-                                            >
-                                                <span>CVSS</span>
-                                                <span className="sort-indicator">{getSortIndicator('cvss3Score')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'package' ? 'active' : ''}`}
-                                                onClick={() => handleSort('package')}
-                                            >
-                                                <span>Paquete</span>
-                                                <span className="sort-indicator">{getSortIndicator('package')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'status' ? 'active' : ''}`}
-                                                onClick={() => handleSort('status')}
-                                            >
-                                                <span>Estado</span>
-                                                <span className="sort-indicator">{getSortIndicator('status')}</span>
-                                            </button>
-                                        </th>
-                                        <th className="sortable">
-                                            <button
-                                                type="button"
-                                                className={`sort-header-btn ${sortConfig.key === 'detectionTime' ? 'active' : ''}`}
-                                                onClick={() => handleSort('detectionTime')}
-                                            >
-                                                <span>Detectada</span>
-                                                <span className="sort-indicator">{getSortIndicator('detectionTime')}</span>
-                                            </button>
-                                        </th>
-                                        <th>Descripción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {paginatedRows.map((row) => (
-                                        <tr key={row.id}>
-                                            <td>{row.id}</td>
-                                            <td>{row.agentName || '-'}</td>
-                                            <td>{row.cve || '-'}</td>
-                                            <td>{row.severity || '-'}</td>
-                                            <td>{row.cvss3Score ?? '-'}</td>
-                                            <td>{`${row.packageName || '-'} ${row.packageVersion ? `(${row.packageVersion})` : ''}`.trim()}</td>
-                                            <td>{row.status || '-'}</td>
-                                            <td>{formatDate(row.detectionTime)}</td>
-                                            <td title={row.description || ''}>{truncateText(row.description)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    <footer className="tables-footer">
-                        <span>
-                            Mostrando {paginatedRows.length} de {totalRecords} registros
-                        </span>
-                        <div className="pagination-controls">
-                            <button onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))} disabled={currentPage === 1}>
-                                Anterior
-                            </button>
-                            <span>
-                                Página {currentPage} de {totalPages}
-                            </span>
-                            <button
-                                onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                            >
-                                Siguiente
-                            </button>
-                            <label className="pagination-go">
-                                <span>Ir a</span>
-                                <input
-                                    type="number"
-                                    min={1}
-                                    max={totalPages}
-                                    placeholder={String(currentPage)}
-                                    value={pageInput}
-                                    onChange={(e) => setPageInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            e.preventDefault();
-                                            const n = parseInt(pageInput, 10);
-                                            if (!Number.isNaN(n)) setCurrentPage(Math.max(1, Math.min(n, totalPages)));
-                                            setPageInput('');
-                                        }
-                                    }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const n = parseInt(pageInput, 10);
-                                        if (!Number.isNaN(n)) setCurrentPage(Math.max(1, Math.min(n, totalPages)));
-                                        setPageInput('');
-                                    }}
-                                >
-                                    Ir
-                                </button>
-                            </label>
-                        </div>
-                    </footer>
-                </section>
-            </main>
-        </div>
+      appliedFilters[filterKey] &&
+      appliedFilters[filterKey] !== "all" &&
+      appliedFilters[filterKey] !== ""
     );
+  };
+
+  const renderFilterPopover = (sortKey, filterKey, title, children) => (
+    <th className="sortable th-with-filter">
+      <div
+        className="th-content"
+        ref={openFilterPopover === filterKey ? popoverRef : null}
+      >
+        <div className="th-content-header">
+          <button
+            type="button"
+            className={`sort-header-btn ${sortConfig.key === sortKey ? "active" : ""}`}
+            onClick={() => handleSort(sortKey)}
+          >
+            <span>{title}</span>
+            <span className="sort-indicator">{getSortIndicator(sortKey)}</span>
+          </button>
+          <button
+            className={`filter-icon-btn ${isFilterActive(filterKey) ? "active" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenFilterPopover(
+                openFilterPopover === filterKey ? null : filterKey,
+              );
+            }}
+          >
+            <Filter size={14} />
+          </button>
+        </div>
+        {openFilterPopover === filterKey && (
+          <div className="filter-popover" onClick={(e) => e.stopPropagation()}>
+            {children}
+            <div className="filter-popover-actions">
+              <button
+                type="button"
+                className="btn-clear"
+                onClick={() => clearFilter(filterKey)}
+              >
+                Limpiar
+              </button>
+              <button type="button" className="btn-apply" onClick={applyFilter}>
+                Aplicar
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </th>
+  );
+
+  const paginatedRows = rows;
+
+  return (
+    <div className="tables-container">
+      <main className="tables-content">
+        <header className="tables-header">
+          <div>
+            <h1>{title}</h1>
+            <p>{subtitle}</p>
+          </div>
+          <div className="tables-header-actions">
+            {!lockHighPriority && (
+              <button
+                className={`priority-toggle ${effectiveHighPriorityOnly ? "active" : ""}`}
+                onClick={() =>
+                  setHighPriorityOnly((previousValue) => !previousValue)
+                }
+              >
+                Alta prioridad {effectiveHighPriorityOnly ? "ON" : "OFF"}
+              </button>
+            )}
+            <button
+              className="refresh-button"
+              onClick={fetchVulnerabilities}
+              disabled={loading}
+            >
+              <RefreshCcw size={16} />
+              {loading ? "Actualizando..." : "Actualizar"}
+            </button>
+          </div>
+        </header>
+
+        <section
+          className="tables-filters"
+          style={{ gridTemplateColumns: "minmax(280px, 1fr) auto auto" }}
+        >
+          <label className="search-input-wrapper">
+            <Search size={16} />
+            <input
+              type="text"
+              placeholder="Búsqueda global..."
+              value={localFilters.search}
+              onChange={(event) =>
+                setLocalFilters({ ...localFilters, search: event.target.value })
+              }
+              onKeyDown={(e) => e.key === "Enter" && applyGlobalSearch()}
+            />
+          </label>
+          <button
+            className="refresh-button"
+            onClick={applyGlobalSearch}
+            style={{ width: "fit-content", padding: "0 1rem" }}
+          >
+            Buscar
+          </button>
+          <button
+            className="refresh-button"
+            onClick={clearAllFilters}
+            style={{
+              width: "fit-content",
+              padding: "0 1rem",
+              backgroundColor: "transparent",
+              border: "1px solid #ff6b6b",
+              color: "#ff6b6b",
+            }}
+          >
+            Limpiar Todos
+          </button>
+        </section>
+
+        {error && (
+          <div className="tables-error">
+            <AlertCircle size={18} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <section className="tables-card">
+          <div className="tables-wrapper">
+            <table className="assets-table">
+              <thead>
+                <tr>
+                  {renderFilterPopover(
+                    "id",
+                    "id",
+                    "ID",
+                    <input
+                      type="number"
+                      min="0"
+                      className="inline-filter-input"
+                      placeholder="Filtrar por ID"
+                      value={localFilters.id}
+                      onChange={(e) =>
+                        setLocalFilters({ ...localFilters, id: e.target.value })
+                      }
+                    />,
+                  )}
+
+                  {renderFilterPopover(
+                    "agentId",
+                    "agent",
+                    "Agente",
+                    <input
+                      type="text"
+                      className="inline-filter-input"
+                      placeholder="Filtrar por Agente"
+                      value={localFilters.agent}
+                      onChange={(e) =>
+                        setLocalFilters({
+                          ...localFilters,
+                          agent: e.target.value,
+                        })
+                      }
+                    />,
+                  )}
+
+                  {renderFilterPopover(
+                    "cve",
+                    "cve",
+                    "CVE",
+                    <input
+                      type="text"
+                      className="inline-filter-input"
+                      placeholder="Filtrar por CVE"
+                      value={localFilters.cve}
+                      onChange={(e) =>
+                        setLocalFilters({
+                          ...localFilters,
+                          cve: e.target.value,
+                        })
+                      }
+                    />,
+                  )}
+
+                  {hideSeverityFilter ? (
+                    <th className="sortable">
+                      <button
+                        type="button"
+                        className={`sort-header-btn ${sortConfig.key === "severity" ? "active" : ""}`}
+                        onClick={() => handleSort("severity")}
+                      >
+                        <span>Severidad</span>
+                        <span className="sort-indicator">
+                          {getSortIndicator("severity")}
+                        </span>
+                      </button>
+                    </th>
+                  ) : (
+                    renderFilterPopover(
+                      "severity",
+                      "severity",
+                      "Severidad",
+                      <select
+                        className="inline-filter-select"
+                        value={localFilters.severity}
+                        onChange={(e) =>
+                          setLocalFilters({
+                            ...localFilters,
+                            severity: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="all">Todas</option>
+                        {severityOptions.map((sev) => (
+                          <option key={sev} value={sev}>
+                            {sev}
+                          </option>
+                        ))}
+                      </select>,
+                    )
+                  )}
+
+                  {renderFilterPopover(
+                    "cvss3Score",
+                    "cvss",
+                    "CVSS",
+                    <div className="inline-cvss-filter">
+                      <div className="mui-slider-container dual-slider-container">
+                        <div
+                          className="dual-slider-track"
+                          style={{
+                            left: `${(localFilters.cvss.min / 10) * 100}%`,
+                            right: `${100 - (localFilters.cvss.max / 10) * 100}%`,
+                          }}
+                        ></div>
+                        <input
+                          type="range"
+                          className="mui-slider dual-slider-input"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={localFilters.cvss.min}
+                          onChange={(e) =>
+                            setLocalFilters({
+                              ...localFilters,
+                              cvss: {
+                                ...localFilters.cvss,
+                                min: Math.min(
+                                  parseFloat(e.target.value),
+                                  localFilters.cvss.max - 0.1,
+                                ),
+                              },
+                            })
+                          }
+                        />
+                        <input
+                          type="range"
+                          className="mui-slider dual-slider-input"
+                          min="0"
+                          max="10"
+                          step="0.1"
+                          value={localFilters.cvss.max}
+                          onChange={(e) =>
+                            setLocalFilters({
+                              ...localFilters,
+                              cvss: {
+                                ...localFilters.cvss,
+                                max: Math.max(
+                                  parseFloat(e.target.value),
+                                  localFilters.cvss.min + 0.1,
+                                ),
+                              },
+                            })
+                          }
+                        />
+                      </div>
+                      <span className="cvss-value">
+                        {localFilters.cvss.min} - {localFilters.cvss.max}
+                      </span>
+                    </div>,
+                  )}
+
+                  {renderFilterPopover(
+                    "packageName",
+                    "package",
+                    "Paquete",
+                    <input
+                      type="text"
+                      className="inline-filter-input"
+                      placeholder="Filtrar por Paquete"
+                      value={localFilters.package}
+                      onChange={(e) =>
+                        setLocalFilters({
+                          ...localFilters,
+                          package: e.target.value,
+                        })
+                      }
+                    />,
+                  )}
+
+                  {renderFilterPopover(
+                    "status",
+                    "status",
+                    "Estado",
+                    <select
+                      className="inline-filter-select"
+                      value={localFilters.status}
+                      onChange={(e) =>
+                        setLocalFilters({
+                          ...localFilters,
+                          status: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="all">Todos</option>
+                      <option value="active">Active</option>
+                      <option value="resolved">Resolved</option>
+                    </select>,
+                  )}
+
+                  {renderFilterPopover(
+                    "detectionTime",
+                    "date",
+                    "Detectada",
+                    <div
+                      className="date-popover-content"
+                      style={{
+                        position: "static",
+                        boxShadow: "none",
+                        border: "none",
+                        padding: "0",
+                        minWidth: "180px",
+                      }}
+                    >
+                      <label>
+                        <span>Desde:</span>
+                        <input
+                          type="date"
+                          className="inline-date-input"
+                          value={localFilters.startDate}
+                          onChange={(e) =>
+                            setLocalFilters({
+                              ...localFilters,
+                              startDate: e.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        <span>Hasta:</span>
+                        <input
+                          type="date"
+                          className="inline-date-input"
+                          value={localFilters.endDate}
+                          onChange={(e) =>
+                            setLocalFilters({
+                              ...localFilters,
+                              endDate: e.target.value,
+                            })
+                          }
+                        />
+                      </label>
+                    </div>,
+                  )}
+
+                  {renderFilterPopover(
+                    "description",
+                    "description",
+                    "Descripción",
+                    <input
+                      type="text"
+                      className="inline-filter-input"
+                      placeholder="Palabra clave..."
+                      value={localFilters.description}
+                      onChange={(e) =>
+                        setLocalFilters({
+                          ...localFilters,
+                          description: e.target.value,
+                        })
+                      }
+                    />,
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      className="tables-state"
+                      style={{ textAlign: "center" }}
+                    >
+                      Cargando datos...
+                    </td>
+                  </tr>
+                ) : paginatedRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="9"
+                      className="tables-state"
+                      style={{ textAlign: "center" }}
+                    >
+                      No se encontraron registros con esos filtros.
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {paginatedRows.map((row) => (
+                      <tr key={row.id}>
+                        <td>{row.id}</td>
+                        <td>{row.agentId || "-"}</td>
+                        <td>{row.cve || "-"}</td>
+                        <td>{row.severity || "-"}</td>
+                        <td>{row.cvss3Score ?? "-"}</td>
+                        <td>
+                          {`${row.packageName || "-"} ${row.packageVersion ? `(${row.packageVersion})` : ""}`.trim()}
+                        </td>
+                        <td>{row.status || "-"}</td>
+                        <td>{formatDate(row.detectionTime)}</td>
+                        <td title={row.description || ""}>
+                          {truncateText(row.description)}
+                        </td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <footer className="tables-footer">
+            <span>
+              Mostrando {paginatedRows.length} de {totalRecords} registros
+            </span>
+            <div className="pagination-controls">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1 || loading}
+                className="page-btn"
+              >
+                Anterior
+              </button>
+              <span className="page-info">
+                Página {currentPage} de {totalPages || 1}
+              </span>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={
+                  currentPage === totalPages || totalPages === 0 || loading
+                }
+                className="page-btn"
+              >
+                Siguiente
+              </button>
+            </div>
+          </footer>
+        </section>
+      </main>
+    </div>
+  );
 };
 
 export default Tables;

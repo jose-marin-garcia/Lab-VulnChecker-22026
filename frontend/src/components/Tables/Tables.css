@@ -143,6 +143,7 @@
 
 .tables-wrapper {
     overflow: auto;
+    min-height: 300px;
 }
 
 .assets-table {
@@ -169,6 +170,11 @@
     text-transform: uppercase;
     font-size: 0.75rem;
     letter-spacing: 0.04em;
+    border-right: 1px solid var(--border);
+}
+
+.assets-table th:last-child {
+    border-right: none;
 }
 
 .assets-table th.sortable {
@@ -298,4 +304,344 @@
     .refresh-button {
         width: fit-content;
     }
+}
+
+.th-with-filter {
+    position: relative;
+    padding: 0 !important;
+}
+
+.th-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+}
+
+.inline-filter-select {
+    margin: 0 0.5rem 0.5rem;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+}
+
+.date-filter-th {
+    min-width: 160px;
+}
+
+.date-range-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    margin: 0 0.5rem 0.5rem;
+}
+
+.inline-date-input {
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    outline: none;
+    cursor: pointer;
+    width: 100%;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.inline-date-input::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+}
+
+.inline-filter-input {
+    margin: 0 0.5rem 0.5rem;
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+    outline: none;
+    width: calc(100% - 1rem);
+    box-sizing: border-box;
+}
+
+.inline-filter-input::-webkit-outer-spin-button,
+.inline-filter-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.inline-cvss-filter {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 0.5rem 0.5rem;
+    gap: 0.2rem;
+}
+
+.mui-slider-container {
+    width: 100%;
+    padding: 0.5rem 0;
+    display: flex;
+    align-items: center;
+}
+
+.mui-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(to right, var(--primary) var(--slider-val, 0%), var(--bg-card) var(--slider-val, 0%));
+    border-radius: 2px;
+    outline: none;
+    margin: 0;
+}
+
+.mui-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    box-shadow: 0px 3px 1px -2px rgba(0,0,0,0.2),0px 2px 2px 0px rgba(0,0,0,0.14),0px 1px 5px 0px rgba(0,0,0,0.12);
+    transition: box-shadow 0.15s ease;
+}
+
+.mui-slider::-webkit-slider-thumb:hover, 
+.mui-slider:active::-webkit-slider-thumb {
+    box-shadow: 0px 0px 0px 6px rgba(46, 204, 113, 0.16);
+}
+
+.dual-slider-container {
+    position: relative;
+    height: 20px;
+}
+
+.dual-slider-input {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    background: none;
+}
+
+.dual-slider-input::-webkit-slider-thumb {
+    pointer-events: auto;
+    position: relative;
+    z-index: 2;
+}
+
+.dual-slider-track {
+    position: absolute;
+    height: 4px;
+    background-color: var(--primary);
+    top: 50%;
+    transform: translateY(-50%);
+    border-radius: 2px;
+    z-index: 1;
+}
+
+.mui-slider.dual-slider-input {
+    background: transparent;
+}
+
+.cvss-value {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: bold;
+    margin-top: 0.4rem;
+    display: block;
+    text-align: center;
+}
+
+/* PrimeVue Style Popover Filters */
+.filter-icon-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0.2rem;
+    margin-right: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.2s, background-color 0.2s;
+    flex-shrink: 0;
+}
+
+.filter-icon-btn:hover {
+    color: var(--text-main);
+    background-color: var(--bg-input);
+}
+
+.filter-icon-btn.active {
+    color: var(--primary);
+}
+
+.filter-popover {
+    position: absolute;
+    top: calc(100% + 5px);
+    left: 0;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    z-index: 1000;
+    min-width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    cursor: default;
+}
+
+.filter-popover-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.filter-popover-actions button {
+    flex: 1;
+    padding: 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    border: none;
+    font-weight: bold;
+}
+
+.filter-popover-actions .btn-clear {
+    background-color: transparent;
+    color: #ff6b6b;
+    border: 1px solid #ff6b6b;
+}
+
+.filter-popover-actions .btn-clear:hover {
+    background-color: rgba(255, 107, 107, 0.1);
+}
+
+.filter-popover-actions .btn-apply {
+    background-color: var(--primary);
+    color: white;
+}
+
+.filter-popover-actions .btn-apply:hover {
+    background-color: #0056b3;
+}
+
+/* Redefine date popover to match the new filter popovers */
+.date-popover-container {
+    position: static;
+}
+
+.date-popover-trigger {
+    background-color: var(--bg-input);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    width: 100%;
+    text-align: center;
+}
+
+.date-popover-trigger:hover {
+    border-color: var(--primary);
+}
+
+.date-popover-content {
+    position: static;
+    background: none;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.date-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    color: var(--text-main);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.2rem;
+}
+
+.clear-dates-btn {
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    font-size: 0.65rem;
+    cursor: pointer;
+}
+
+.clear-dates-btn:hover {
+    text-decoration: underline;
+}
+
+.date-popover-content label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.close-popover-btn {
+    margin-top: 0.3rem;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.4rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.close-popover-btn:hover {
+    background-color: #0056b3;
+}
+
+.th-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.th-content .sort-header-btn {
+    width: 100%;
+    justify-content: flex-start;
+}
+
+.th-content-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0.5rem;
 }
