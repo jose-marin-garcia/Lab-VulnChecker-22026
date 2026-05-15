@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Database, Plus, Trash2, ArrowLeft, Send, Loader2 } from 'lucide-react'; // Cambié ShieldCheck por Loader2 para el loading
 import { useNavigate } from 'react-router-dom';
 import { buildApiUrl } from '../../config/api';
+import { apiClient } from '../../config/auth';
 import './Consumer.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -24,10 +25,7 @@ const Consumer = () => {
         if (loading) {
             interval = setInterval(async () => {
                 try {
-                    const token = localStorage.getItem('token'); 
-                    const res = await fetch(`${API_BASE_URL}/api/vulns/count-local`, {
-                        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-                    });
+                    const res = await apiClient.get(`${API_BASE_URL}/api/vulns/count-local`);
 
                     if (res.ok) {
                         const data = await res.json();
@@ -51,7 +49,7 @@ const Consumer = () => {
         const fetchCredentials = async () => {
             if (!userId) return;
             try {
-                const response = await fetch(`${API_BASE_URL}/api/infra-credentials/user/${userId}`);
+                const response = await apiClient.get(`${API_BASE_URL}/api/infra-credentials/user/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     setAvailableCredentials(data);
@@ -87,21 +85,12 @@ const Consumer = () => {
         setError(null);
         
         let totalCule = 0;
-        const appAuth = localStorage.getItem('auth_basic');
-        
+
         try {
             for (const server of servers) {
-                // 1. Obtener el total dinámico
-                const countRes = await fetch(`${API_BASE_URL}/api/vulns/remote-count`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': appAuth
-                    },
-                    body: JSON.stringify({
-                        ip: server.ip,
-                        infrastructureCredentialId: parseInt(server.credentialId)
-                    })
+                const countRes = await apiClient.post(`${API_BASE_URL}/api/vulns/remote-count`, {
+                    ip: server.ip,
+                    infrastructureCredentialId: parseInt(server.credentialId)
                 });
 
                 if (!countRes.ok) {
@@ -115,17 +104,9 @@ const Consumer = () => {
                 totalCule += (data.total || 0);
                 setTotalTarget(totalCule);
 
-                // 2. Disparar consumo
-                const consumeRes = await fetch(`${API_BASE_URL}/api/vulns/consume`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': appAuth
-                    },
-                    body: JSON.stringify({
-                        ip: server.ip,
-                        infrastructureCredentialId: parseInt(server.credentialId)
-                    })
+                const consumeRes = await apiClient.post(`${API_BASE_URL}/api/vulns/consume`, {
+                    ip: server.ip,
+                    infrastructureCredentialId: parseInt(server.credentialId)
                 });
 
                 if (!consumeRes.ok) {

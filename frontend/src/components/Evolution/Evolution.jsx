@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, RefreshCcw, Search } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
+import { apiClient } from '../../config/auth';
 import './Evolution.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -36,7 +37,7 @@ const Evolution = () => {
     useEffect(() => {
         const loadFilters = async () => {
             try {
-                const response = await fetch(FILTERS_URL);
+                const response = await apiClient.get(FILTERS_URL);
                 if (!response.ok) {
                     return;
                 }
@@ -81,7 +82,7 @@ const Evolution = () => {
                 params.set('search', search.trim());
             }
 
-            const response = await fetch(`${EVOLUTION_URL}?${params.toString()}`);
+            const response = await apiClient.get(`${EVOLUTION_URL}?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }

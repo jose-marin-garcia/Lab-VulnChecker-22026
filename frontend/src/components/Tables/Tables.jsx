@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, RefreshCcw, Search } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
+import { apiClient } from '../../config/auth';
 import './Tables.css';
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/vulnerabilities`;
@@ -45,7 +46,7 @@ const Tables = ({
     useEffect(() => {
         const loadFilters = async () => {
             try {
-                const res = await fetch(FILTERS_URL);
+                const res = await apiClient.get(FILTERS_URL);
                 if (!res.ok) return;
                 const json = await res.json();
                 setSeverityOptions(Array.isArray(json?.severities) ? json.severities : []);
@@ -82,7 +83,7 @@ const Tables = ({
             params.set('sortKey', sortConfig.key);
             params.set('sortDir', sortConfig.direction);
 
-            const response = await fetch(`${API_URL}?${params.toString()}`);
+            const response = await apiClient.get(`${API_URL}?${params.toString()}`);
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }

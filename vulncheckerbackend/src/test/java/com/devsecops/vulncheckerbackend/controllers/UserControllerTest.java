@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.controllers;
 
+import com.devsecops.vulncheckerbackend.config.JwtUtil;
 import com.devsecops.vulncheckerbackend.entities.UserEntity;
 import com.devsecops.vulncheckerbackend.repositories.UserRepository;
 import com.devsecops.vulncheckerbackend.services.UserService;
@@ -40,10 +41,14 @@ class UserControllerTest {
     @MockitoBean
     private BCryptPasswordEncoder passwordEncoder;
 
+    @MockitoBean
+    private JwtUtil jwtUtil;
+
     @Test
     void login_returnsUser_whenCredentialsAreValid() throws Exception {
         UserEntity user = TestDataFactory.user(1L);
         when(userService.login(anyString(), anyString())).thenReturn(Optional.of(user));
+        when(jwtUtil.generateToken(anyString(), anyString(), any(), anyString())).thenReturn("mock-token");
 
         mockMvc.perform(post("/api/users/login")
                         .contentType(MediaType.APPLICATION_JSON)

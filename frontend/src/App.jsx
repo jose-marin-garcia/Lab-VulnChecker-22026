@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import Navbar from './components/Navbar/Navbar';
+import { apiClient } from './config/auth';
 import Login from './components/Login/Login';
 import Register from './components/Login/Register';
 import Home from './components/Home/Home';
@@ -11,16 +13,48 @@ import Charts from './components/Charts/Charts';
 import Evolution from './components/Evolution/Evolution';
 import './App.css';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 // Componente para proteger rutas
 const ProtectedRoute = ({ children, adminOnly = false }) => {
     const isAuthenticated = localStorage.getItem('is_authenticated') === 'true';
-    const userRole = localStorage.getItem('user_role'); // 'ADMIN' o 'USER'
-    
-    if (!isAuthenticated) {
+    const userRole = localStorage.getItem('user_role');
+    const [checking, setChecking] = useState(true);
+    const [valid, setValid] = useState(false);
+
+    useEffect(() => {
+        const validate = async () => {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                setValid(false);
+                setChecking(false);
+                return;
+            }
+            try {
+                const res = await apiClient.get(`${API_BASE_URL}/api/users/me`);
+                if (res.ok) {
+                    const data = await res.json();
+                    localStorage.setItem('user_role', data.role);
+                    localStorage.setItem('user_name', data.firstName);
+                    setValid(true);
+                } else {
+                    localStorage.clear();
+                    setValid(false);
+                }
+            } catch {
+                setValid(true);
+            }
+            setChecking(false);
+        };
+        validate();
+    }, []);
+
+    if (checking) return null;
+
+    if (!isAuthenticated || !valid) {
         return <Navigate to="/" replace />;
     }
 
-    // Si la ruta es solo para admin y el usuario no lo es
     if (adminOnly && userRole !== 'ADMIN') {
         return <Navigate to="/home" replace />;
     }

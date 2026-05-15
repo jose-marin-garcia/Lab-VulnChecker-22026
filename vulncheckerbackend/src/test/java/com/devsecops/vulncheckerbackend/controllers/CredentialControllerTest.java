@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.controllers;
 
+import com.devsecops.vulncheckerbackend.config.JwtUtil;
 import com.devsecops.vulncheckerbackend.entities.CredentialEntity;
 import com.devsecops.vulncheckerbackend.repositories.UserRepository;
 import com.devsecops.vulncheckerbackend.services.CredentialService;
@@ -39,6 +40,9 @@ class CredentialControllerTest {
 
     @MockitoBean
     private BCryptPasswordEncoder passwordEncoder;
+
+    @MockitoBean
+    private JwtUtil jwtUtil;
 
     @Test
     void create_returnsSavedCredential() throws Exception {

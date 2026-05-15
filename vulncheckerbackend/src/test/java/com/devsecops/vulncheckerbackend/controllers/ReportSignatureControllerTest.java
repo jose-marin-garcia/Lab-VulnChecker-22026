@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.controllers;
 
+import com.devsecops.vulncheckerbackend.config.JwtUtil;
 import com.devsecops.vulncheckerbackend.entities.ReportSignatureEntity;
 import com.devsecops.vulncheckerbackend.repositories.UserRepository;
 import com.devsecops.vulncheckerbackend.services.ReportSignatureService;
@@ -34,6 +35,9 @@ class ReportSignatureControllerTest {
 
     @MockitoBean
     private BCryptPasswordEncoder passwordEncoder;
+
+    @MockitoBean
+    private JwtUtil jwtUtil;
 
     @Test
     void signReportHash_returnsSuccessPayload() throws Exception {

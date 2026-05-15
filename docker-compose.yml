@@ -53,6 +53,7 @@ services:
       - WAZUH_LOCAL_TUNNEL_PORT=${WAZUH_LOCAL_TUNNEL_PORT}
       - WAZUH_VULN_INDEX=${WAZUH_VULN_INDEX}
       - WAZUH_MONITORING_INDEX=${WAZUH_MONITORING_INDEX}
+      - JWT_SECRET=${JWT_SECRET}
       - TZ=America/Santiago
     command: /app/mvnw spring-boot:run
     depends_on:

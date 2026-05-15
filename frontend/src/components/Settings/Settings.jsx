@@ -4,6 +4,7 @@ import {
     Users, Check, Trash2, UserCheck 
 } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
+import { apiClient } from '../../config/auth';
 import './Settings.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -32,13 +33,11 @@ const Settings = () => {
         if (!userId) return;
 
         try {
-            // 1. Cargar credenciales de infraestructura
-            const resInfra = await fetch(`${API_BASE_URL}/api/infra-credentials/user/${userId}`);
+            const resInfra = await apiClient.get(`${API_BASE_URL}/api/infra-credentials/user/${userId}`);
             if (resInfra.ok) setInfraCredentials(await resInfra.json());
 
-            // 2. Si es ADMIN, cargar usuarios pendientes (active = false)
             if (userRole === 'ADMIN') {
-                const resUsers = await fetch(`${API_BASE_URL}/api/users/pending`);
+                const resUsers = await apiClient.get(`${API_BASE_URL}/api/users/pending`);
                 if (resUsers.ok) setPendingUsers(await resUsers.json());
             }
         } catch (error) { 
@@ -52,7 +51,7 @@ const Settings = () => {
     const handleActivateUser = async (id) => {
         if (!window.confirm("¿Confirmas la activación de este usuario?")) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/api/users/${id}/activate`, { method: 'PATCH' });
+            const res = await apiClient.patch(`${API_BASE_URL}/api/users/${id}/activate`);
             if (res.ok) fetchData();
         } catch (error) { console.error('Error:', error); }
     };
@@ -60,7 +59,7 @@ const Settings = () => {
     const handleDeleteUser = async (id) => {
         if (!window.confirm("¿Estás seguro de rechazar/eliminar esta solicitud?")) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/api/users/${id}`, { method: 'DELETE' });
+            const res = await apiClient.delete(`${API_BASE_URL}/api/users/${id}`);
             if (res.ok) fetchData();
         } catch (error) { console.error('Error:', error); }
     };
@@ -110,15 +109,9 @@ const Settings = () => {
             const url = editingId 
                 ? `${API_BASE_URL}/api/infra-credentials/${editingId}`
                 : `${API_BASE_URL}/api/infra-credentials`;
-            const appAuth = localStorage.getItem('auth_basic');
-            const response = await fetch(url, {
-                method: editingId ? 'PUT' : 'POST',
-                headers: { 
-                    'Content-Type': 'application/json',
-                    'Authorization': appAuth
-                },
-                body: JSON.stringify(payload)
-            });
+            const response = editingId
+                ? await apiClient.put(url, payload)
+                : await apiClient.post(url, payload);
 
             if (response.ok) {
                 cancelEdit();

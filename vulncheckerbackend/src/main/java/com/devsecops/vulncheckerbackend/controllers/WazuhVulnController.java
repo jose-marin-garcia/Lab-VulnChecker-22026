@@ -185,17 +185,28 @@ public class WazuhVulnController {
 		return ResponseEntity.ok(Map.of("total", total));
 	}
 
-	// ─── Manejo de errores ────────────────────────────────────────────────────
+    // ─── Manejo de errores ────────────────────────────────────────────────────
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleError(Exception e) {
-        String customMessage = e.getMessage();
-        
-        if (e.getMessage() != null && e.getMessage().contains("timeout: socket is not established")) {
-            customMessage = "No se pudo establecer conexión SSH (Timeout). Verifica que la IP sea correcta y el puerto 22 esté abierto.";
-        } else if (e.getMessage() != null && e.getMessage().contains("Auth fail")) {
-            customMessage = "Credenciales SSH incorrectas.";
-        } else if (e instanceof HttpClientErrorException httpEx
-                   && (httpEx.getStatusCode() == HttpStatus.UNAUTHORIZED || httpEx.getStatusCode() == HttpStatus.FORBIDDEN)) {
+        String msg = e.getMessage();
+        String customMessage = msg;
+
+        if (msg != null) {
+            if (msg.contains("NoRouteToHostException") || msg.contains("Host is unreachable")) {
+                customMessage = "La dirección IP no es accesible o no existe en la red. Verifica que la IP sea correcta y el servidor esté encendido.";
+            } else if (msg.contains("Connection refused") || msg.contains("ConnectException")) {
+                customMessage = "Conexión rechazada. La IP es correcta pero el puerto SSH (22) no está abierto o el servicio no está disponible.";
+            } else if (msg.contains("UnknownHostException")) {
+                customMessage = "El nombre de host o la dirección IP no son válidos. Revisa la IP ingresada.";
+            } else if (msg.contains("timeout: socket is not established")) {
+                customMessage = "No se pudo establecer conexión SSH (Timeout). Verifica que la IP sea correcta y el puerto 22 esté abierto.";
+            } else if (msg.contains("Auth fail")) {
+                customMessage = "Credenciales SSH incorrectas.";
+            }
+        }
+
+        if (e instanceof HttpClientErrorException httpEx
+                && (httpEx.getStatusCode() == HttpStatus.UNAUTHORIZED || httpEx.getStatusCode() == HttpStatus.FORBIDDEN)) {
             customMessage = "No se pudieron obtener los datos. Es probable que la contraseña de Wazuh esté desactualizada. Verifica las credenciales de Wazuh en Ajustes.";
         }
 

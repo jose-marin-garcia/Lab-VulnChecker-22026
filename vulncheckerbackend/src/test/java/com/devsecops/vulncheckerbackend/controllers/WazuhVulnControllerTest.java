@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.controllers;
 
+import com.devsecops.vulncheckerbackend.config.JwtUtil;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.entities.InfrastructureCredentialEntity;
 import com.devsecops.vulncheckerbackend.repositories.InfrastructureCredentialRepository;
@@ -51,6 +52,9 @@ class WazuhVulnControllerTest {
 
     @MockitoBean
     private BCryptPasswordEncoder passwordEncoder;
+
+    @MockitoBean
+    private JwtUtil jwtUtil;
 
     @Test
     void getAllLegacy_returnsDataWithDecodedCredentials() throws Exception {

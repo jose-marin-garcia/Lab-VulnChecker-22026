@@ -3,6 +3,7 @@ import { AlertCircle, RefreshCcw, Search, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { buildApiUrl } from '../../config/api';
+import { apiClient } from '../../config/auth';
 import './Summary.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -53,7 +54,7 @@ const Summary = ({
     useEffect(() => {
         const loadFilters = async () => {
             try {
-                const res = await fetch(FILTERS_URL);
+                const res = await apiClient.get(FILTERS_URL);
                 if (!res.ok) return;
                 const json = await res.json();
                 setSeverityOptions(Array.isArray(json?.severities) ? json.severities : []);
@@ -79,7 +80,7 @@ const Summary = ({
             if (search.trim()) params.set('search', search.trim());
             if (effectiveHighPriorityOnly) params.set('highPriorityOnly', 'true');
 
-            const response = await fetch(`${API_URL}?${params.toString()}`);
+            const response = await apiClient.get(`${API_URL}?${params.toString()}`);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const data = await response.json();
@@ -146,13 +147,9 @@ const Summary = ({
         const pdfHash = await calculateSHA256(pdfBuffer);
         
         try {
-            const response = await fetch(`${API_BASE_URL}/api/reports/sign`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    reportName: `vuln_report_${Date.now()}.pdf`,
-                    sha256Hash: pdfHash
-                })
+            const response = await apiClient.post(`${API_BASE_URL}/api/reports/sign`, {
+                reportName: `vuln_report_${Date.now()}.pdf`,
+                sha256Hash: pdfHash
             });
 
             if (response.ok) {

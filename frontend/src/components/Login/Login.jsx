@@ -26,17 +26,14 @@ const Login = () => {
             });
 
             if (response.ok) {
-                const user = await response.json();
-                localStorage.setItem('user_id', user.id);
-                localStorage.setItem('user_role', user.role);
+                const data = await response.json();
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user_id', data.id);
+                localStorage.setItem('user_role', data.role);
                 localStorage.setItem('is_authenticated', 'true');
-                localStorage.setItem('user_name', user.firstName); // Para saludarlo en el Home
+                localStorage.setItem('user_name', data.firstName);
                 
-                if (user.role === 'ADMIN') {
-                    navigate('/home');
-                } else {
-                    navigate('/home');
-                }
+                navigate('/home');
             } else if (response.status === 401) {
                 alert('Credenciales incorrectas o cuenta aún no aprobada por el administrador.');
             } else {
