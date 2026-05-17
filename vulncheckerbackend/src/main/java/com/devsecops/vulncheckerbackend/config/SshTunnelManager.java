@@ -9,9 +9,6 @@ import java.util.Properties;
 
 @Component
 public class SshTunnelManager {
-
-    private static final String WAZUH_HOST     = "127.0.0.1";   // host local dentro del servidor SSH
-    
     @Value("${wazuh.indexer.port}")
     private int wazuhApiPort;       // puerto por defecto de Wazuh Indexer
     
@@ -37,10 +34,13 @@ public class SshTunnelManager {
         config.put("StrictHostKeyChecking", "no");   // en producción usa known_hosts
         session.setConfig(config);
 
-        session.connect(10_000); // timeout 10 s
-
-        // forward: localhost:localPort → WAZUH_HOST:wazuhApiPort  (dentro del servidor SSH)
-        session.setPortForwardingL(localPort, WAZUH_HOST, wazuhApiPort);
+        try {
+            session.connect(10_000); // timeout 10 s
+            session.setPortForwardingL(localPort, "127.0.0.1", wazuhApiPort);
+        } catch (Exception e) {
+            System.err.println("Error: La conexión SSH falló - " + e.getMessage());
+            throw e;
+        }
 
         return session;
     }

@@ -178,12 +178,18 @@ public class WazuhService {
             String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
             headers.set("Authorization", "Basic " + encodedAuth);
 
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                url, HttpMethod.GET, new HttpEntity<>(headers), 
-                new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
-            );
+            try {
+                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                        url, HttpMethod.GET, new HttpEntity<>(headers),
+                        new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
+                );
+                return Long.parseLong(response.getBody().get("count").toString());
+            } catch (Exception e) {
+                System.err.println("Error inesperado al conectarse con elasticSearch: " + e.getMessage());
+                throw e;
+            }
 
-            return Long.parseLong(response.getBody().get("count").toString());
+
         } finally {
             tunnelManager.closeTunnel(session);
         }
