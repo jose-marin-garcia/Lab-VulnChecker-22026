@@ -40,6 +40,13 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/vulns/count-local").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
+                // Solo ADMIN puede gestionar usuarios y credenciales
+                .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/users/pending").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/users/*/activate").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/users/*").hasRole("ADMIN")
+                .requestMatchers("/api/credentials/**").hasRole("ADMIN")
+                .requestMatchers("/api/infra-credentials/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

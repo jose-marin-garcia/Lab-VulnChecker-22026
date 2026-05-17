@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.entities;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -18,6 +19,7 @@ public class InfrastructureCredentialEntity {
     private String sshUser;
 
     @Column(name = "ssh_password")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String sshPassword;
 
     // Credenciales Wazuh API
@@ -25,6 +27,7 @@ public class InfrastructureCredentialEntity {
     private String wazuhUser;
 
     @Column(name = "wazuh_password")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String wazuhPassword;
 
     @Column(name = "user_id", nullable = false)

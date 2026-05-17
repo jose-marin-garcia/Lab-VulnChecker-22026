@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.entities;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -18,6 +19,7 @@ public class CredentialEntity {
     private String usernameCredentials;
 
     @Column(nullable = false)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String passwordCredentials;
 
     @Column(name = "created_at")
