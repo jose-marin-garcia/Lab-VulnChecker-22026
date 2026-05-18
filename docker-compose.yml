@@ -4,7 +4,7 @@ name: vulnchecker
 
 services:
   db:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     container_name: vuln-db
     networks:
       - app_internal
