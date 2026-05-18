@@ -47,7 +47,7 @@ class WazuhServiceTest {
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
-            "10.0.0.1", "root", "ssh-pass", "api-user", "api-pass"
+            "10.0.0.1", "root", "ssh-pass", "api-user", "api-pass", "idx-user", "idx-pass"
     );
 
     @BeforeEach

@@ -16,6 +16,8 @@ const Settings = () => {
     const [sshPass, setSshPass] = useState('');
     const [wazuhUser, setWazuhUser] = useState('');
     const [wazuhPass, setWazuhPass] = useState('');
+    const [indexerUser, setIndexerUser] = useState('');
+    const [indexerPass, setIndexerPass] = useState('');
     const [infraCredentials, setInfraCredentials] = useState([]);
     
     // Estados Admin (Gestión de Usuarios)
@@ -72,12 +74,15 @@ const Settings = () => {
         setSshPass(''); 
         setWazuhUser(cred.wazuhUser);
         setWazuhPass('');
+        setIndexerUser(cred.indexerUser || '');
+        setIndexerPass('');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const cancelEdit = () => {
         setEditingId(null);
         setInfraName(''); setSshUser(''); setSshPass(''); setWazuhUser(''); setWazuhPass('');
+        setIndexerUser(''); setIndexerPass('');
     };
 
     const handleSubmit = (e) => {
@@ -102,7 +107,9 @@ const Settings = () => {
             sshUser,
             sshPassword: sshPass,
             wazuhUser,
-            wazuhPassword: wazuhPass
+            wazuhPassword: wazuhPass,
+            indexerUser,
+            indexerPassword: indexerPass
         };
 
         try {
@@ -253,6 +260,14 @@ const Settings = () => {
                                 <label><Lock size={14} /> Pass Wazuh {editingId && '(Nueva)'}</label>
                                 <input type="password" value={wazuhPass} onChange={(e) => setWazuhPass(e.target.value)} placeholder="••••" required={!editingId} />
                             </div>
+                            <div className="form-group">
+                                <label><Database size={14} /> Usuario Indexer</label>
+                                <input type="text" value={indexerUser} onChange={(e) => setIndexerUser(e.target.value)} placeholder="admin" />
+                            </div>
+                            <div className="form-group">
+                                <label><Lock size={14} /> Pass Indexer {editingId && '(Nueva)'}</label>
+                                <input type="password" value={indexerPass} onChange={(e) => setIndexerPass(e.target.value)} placeholder="••••" />
+                            </div>
                         </div>
                         <button type="submit" className="save-button infra-btn" disabled={loading}>
                             {editingId ? 'Actualizar Datos del Perfil' : 'Guardar Perfil'}
@@ -273,7 +288,7 @@ const Settings = () => {
                                 {infraCredentials.map((cred) => (
                                     <tr key={cred.id} style={editingId === cred.id ? {backgroundColor: 'rgba(0, 123, 255, 0.05)'} : {}}>
                                         <td style={{ fontWeight: 'bold' }}>{cred.name}</td>
-                                        <td>{cred.sshUser} / {cred.wazuhUser}</td>
+                                        <td>{cred.sshUser} / {cred.wazuhUser} / {cred.indexerUser || 'admin'}</td>
                                         <td>
                                             <button className="edit-btn" onClick={() => startEdit(cred)}>
                                                 <Edit2 size={12} /> Editar

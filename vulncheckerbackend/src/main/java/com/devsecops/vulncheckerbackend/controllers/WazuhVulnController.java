@@ -43,7 +43,8 @@ public class WazuhVulnController {
                 authHeader.replace("Basic ", "").trim()
         ));
         String[] parts = decoded.split(":", 2);
-        return new WazuhCredentials(sshHost, sshUser, sshPassword, parts[0], parts[1]);
+        // Nota: los endpoints legacy usan las mismas credenciales para API e Indexer
+        return new WazuhCredentials(sshHost, sshUser, sshPassword, parts[0], parts[1], parts[0], parts[1]);
     }
 
     // ─── 1. Todas (paginadas) ─────────────────────────────────────────────────
@@ -154,12 +155,16 @@ public class WazuhVulnController {
 		InfrastructureCredentialEntity credEntity = infraRepo.findById(request.getInfrastructureCredentialId())
 				.orElseThrow(() -> new RuntimeException("Credencial no encontrada"));
 
+		String idxUser = credEntity.getIndexerUser() != null ? credEntity.getIndexerUser() : credEntity.getWazuhUser();
+		String idxPass = credEntity.getIndexerPassword() != null ? credEntity.getIndexerPassword() : credEntity.getWazuhPassword();
 		WazuhCredentials credentials = new WazuhCredentials(
 				request.getIp(),
 				credEntity.getSshUser(),
 				credEntity.getSshPassword(),
 				credEntity.getWazuhUser(),
-				credEntity.getWazuhPassword()
+				credEntity.getWazuhPassword(),
+				idxUser,
+				idxPass
 		);
 
 		// Ejecución asíncrona delegada al servicio
@@ -176,9 +181,12 @@ public class WazuhVulnController {
 		InfrastructureCredentialEntity credEntity = infraRepo.findById(request.getInfrastructureCredentialId())
 				.orElseThrow(() -> new RuntimeException("Credencial no encontrada"));
 
+		String idxUser = credEntity.getIndexerUser() != null ? credEntity.getIndexerUser() : credEntity.getWazuhUser();
+		String idxPass = credEntity.getIndexerPassword() != null ? credEntity.getIndexerPassword() : credEntity.getWazuhPassword();
 		WazuhCredentials credentials = new WazuhCredentials(
 				request.getIp(), credEntity.getSshUser(), credEntity.getSshPassword(),
-				credEntity.getWazuhUser(), credEntity.getWazuhPassword()
+				credEntity.getWazuhUser(), credEntity.getWazuhPassword(),
+				idxUser, idxPass
 		);
 
 		long total = wazuhService.getRemoteTotalCount(credentials);

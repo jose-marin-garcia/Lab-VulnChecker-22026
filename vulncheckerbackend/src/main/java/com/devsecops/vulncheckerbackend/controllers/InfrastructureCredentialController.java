@@ -39,6 +39,10 @@ public class InfrastructureCredentialController {
                     if (credentialDetails.getWazuhPassword() != null && !credentialDetails.getWazuhPassword().isEmpty()) {
                         existingCredential.setWazuhPassword(credentialDetails.getWazuhPassword());
                     }
+                    existingCredential.setIndexerUser(credentialDetails.getIndexerUser());
+                    if (credentialDetails.getIndexerPassword() != null && !credentialDetails.getIndexerPassword().isEmpty()) {
+                        existingCredential.setIndexerPassword(credentialDetails.getIndexerPassword());
+                    }
                     
                     return ResponseEntity.ok(service.save(existingCredential));
                 })

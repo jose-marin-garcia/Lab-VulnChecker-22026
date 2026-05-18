@@ -6,5 +6,7 @@ public record WazuhCredentials(
         String sshUser,
         String sshPassword,
         String wazuhUser,
-        String wazuhPassword
+        String wazuhPassword,
+        String indexerUser,
+        String indexerPassword
 ) {}

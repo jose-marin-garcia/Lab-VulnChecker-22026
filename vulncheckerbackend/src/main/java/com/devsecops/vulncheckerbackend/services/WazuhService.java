@@ -203,12 +203,12 @@ public class WazuhService {
     // ─────────────────────────────────────────────────────────────────────────
 
     private Map<String, Object> executeWithTunnel(WazuhCredentials creds, String queryBody) throws Exception {
-        log.info(">>> EJECUTANDO ACCESO: Host SSH: {} | Usuario SSH: {} | Usuario Wazuh: {}",
-                creds.sshHost(), creds.sshUser(), creds.wazuhUser());
+        log.info(">>> EJECUTANDO ACCESO: Host SSH: {} | Usuario SSH: {} | Indexer User: {}",
+                creds.sshHost(), creds.sshUser(), creds.indexerUser());
 
         Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
         try {
-            return search(queryBody, creds.wazuhUser(), creds.wazuhPassword());
+            return search(queryBody, creds.indexerUser(), creds.indexerPassword());
         } finally {
             tunnelManager.closeTunnel(session);
         }
@@ -240,7 +240,7 @@ public class WazuhService {
             String url = wazuhBaseUrl() + "/" + vulnIndex + "/_count";
 
             HttpHeaders headers = new HttpHeaders();
-            String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
+            String auth = creds.indexerUser() + ":" + creds.indexerPassword();
             String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
             headers.set("Authorization", "Basic " + encodedAuth);
 
@@ -300,7 +300,7 @@ public class WazuhService {
                             }
                             """.formatted(pageSize, searchAfterClause);
 
-                        Map<String, Object> response = search(body, creds.wazuhUser(), creds.wazuhPassword());
+                        Map<String, Object> response = search(body, creds.indexerUser(), creds.indexerPassword());
 
                         if (response != null && response.containsKey("hits")) {
                             Map<String, Object> hitsStructure = (Map<String, Object>) response.get("hits");
@@ -399,7 +399,7 @@ public class WazuhService {
                     }
                     """;
 
-            String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
+            String auth = creds.indexerUser() + ":" + creds.indexerPassword();
             String credentials = java.util.Base64.getEncoder().encodeToString(
                     auth.getBytes(java.nio.charset.StandardCharsets.UTF_8)
             );

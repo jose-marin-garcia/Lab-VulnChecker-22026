@@ -22,13 +22,21 @@ public class InfrastructureCredentialEntity {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String sshPassword;
 
-    // Credenciales Wazuh API
+    // Credenciales Wazuh API (JWT)
     @Column(name = "wazuh_user")
     private String wazuhUser;
 
     @Column(name = "wazuh_password")
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String wazuhPassword;
+
+    // Credenciales Wazuh Indexer (Basic Auth)
+    @Column(name = "indexer_user")
+    private String indexerUser;
+
+    @Column(name = "indexer_password")
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String indexerPassword;
 
     @Column(name = "user_id", nullable = false)
     private Long userId; 
@@ -49,6 +57,10 @@ public class InfrastructureCredentialEntity {
     public void setWazuhUser(String wazuhUser) { this.wazuhUser = wazuhUser; }
     public String getWazuhPassword() { return wazuhPassword; }
     public void setWazuhPassword(String wazuhPassword) { this.wazuhPassword = wazuhPassword; }
+    public String getIndexerUser() { return indexerUser; }
+    public void setIndexerUser(String indexerUser) { this.indexerUser = indexerUser; }
+    public String getIndexerPassword() { return indexerPassword; }
+    public void setIndexerPassword(String indexerPassword) { this.indexerPassword = indexerPassword; }
     public Long getUserId() { return userId; }
     public void setUserId(Long userId) { this.userId = userId; }
 }
