@@ -10,20 +10,17 @@ import java.util.Properties;
 @Component
 public class SshTunnelManager {
     @Value("${wazuh.indexer.port}")
-    private int wazuhApiPort;       // puerto por defecto de Wazuh Indexer
-    
-    @Value("${wazuh.tunnel.local-port}")
-    private int localPort;        // puerto local del tunnel (Indexer)
+    private int wazuhIndexerPort;
 
-    /**
-     * Abre un SSH tunnel hacia el servidor donde corre Wazuh.
-     * Devuelve la sesión activa — el caller DEBE cerrarla cuando termine.
-     *
-     * @param sshHost     IP/hostname del servidor SSH
-     * @param sshPort     Puerto SSH (normalmente 22)
-     * @param sshUser     Usuario SSH
-     * @param sshPassword Contraseña SSH
-     */
+    @Value("${wazuh.tunnel.local-port}")
+    private int indexerLocalPort;
+
+    @Value("${wazuh.api.port}")
+    private int wazuhApiPort;
+
+    @Value("${wazuh.api.local-port}")
+    private int apiLocalPort;
+
     public Session openTunnel(String sshHost, int sshPort, String sshUser, String sshPassword) throws Exception {
         JSch jsch = new JSch();
 
@@ -31,12 +28,12 @@ public class SshTunnelManager {
         session.setPassword(sshPassword);
 
         Properties config = new Properties();
-        config.put("StrictHostKeyChecking", "no");   // en producción usa known_hosts
+        config.put("StrictHostKeyChecking", "no");
         session.setConfig(config);
 
         try {
-            session.connect(10_000); // timeout 10 s
-            session.setPortForwardingL(localPort, "127.0.0.1", wazuhApiPort);
+            session.connect(10_000);
+            session.setPortForwardingL(indexerLocalPort, "127.0.0.1", wazuhIndexerPort);
         } catch (Exception e) {
             System.err.println("Error: La conexión SSH falló - " + e.getMessage());
             throw e;
@@ -45,7 +42,22 @@ public class SshTunnelManager {
         return session;
     }
 
-    /** Cierra la sesión SSH (y el tunnel) de forma segura. */
+    public Session openTunnel(String sshHost, int sshPort, String sshUser, String sshPassword, int localPort, int remotePort) throws Exception {
+        JSch jsch = new JSch();
+
+        Session session = jsch.getSession(sshUser, sshHost, sshPort);
+        session.setPassword(sshPassword);
+
+        Properties config = new Properties();
+        config.put("StrictHostKeyChecking", "no");
+        session.setConfig(config);
+
+        session.connect(10_000);
+        session.setPortForwardingL(localPort, "127.0.0.1", remotePort);
+
+        return session;
+    }
+
     public void closeTunnel(Session session) {
         if (session != null && session.isConnected()) {
             session.disconnect();
@@ -53,6 +65,10 @@ public class SshTunnelManager {
     }
 
     public int getLocalPort() {
-        return localPort;
+        return indexerLocalPort;
+    }
+
+    public int getApiLocalPort() {
+        return apiLocalPort;
     }
 }
