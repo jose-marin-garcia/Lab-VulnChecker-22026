@@ -52,7 +52,7 @@ class InfrastructureCredentialControllerTest {
 
         mockMvc.perform(post("/api/infra-credentials")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"id\":1,\"name\":\"Laboratorio\",\"sshUser\":\"root\",\"sshPassword\":\"ssh-pass\",\"wazuhUser\":\"wazuh-api\",\"wazuhPassword\":\"wazuh-pass\",\"userId\":2}"))
+                        .content("{\"id\":1,\"name\":\"Laboratorio\",\"wazuhIp\":\"10.0.0.1\",\"wazuhUser\":\"wazuh-api\",\"wazuhPassword\":\"wazuh-pass\",\"userId\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
     }
@@ -62,8 +62,7 @@ class InfrastructureCredentialControllerTest {
         InfrastructureCredentialEntity existing = TestDataFactory.infrastructureCredential(4L, 1L);
         InfrastructureCredentialEntity request = TestDataFactory.infrastructureCredential(null, 1L);
         request.setName("Nuevo nombre");
-        request.setSshUser("nuevo-ssh");
-        request.setSshPassword("");
+        request.setWazuhIp("10.0.0.2");
         request.setWazuhUser("nuevo-wazuh");
         request.setWazuhPassword("");
 
@@ -72,15 +71,15 @@ class InfrastructureCredentialControllerTest {
 
         mockMvc.perform(put("/api/infra-credentials/4")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Nuevo nombre\",\"sshUser\":\"nuevo-ssh\",\"sshPassword\":\"\",\"wazuhUser\":\"nuevo-wazuh\",\"wazuhPassword\":\"\",\"userId\":1}"))
+                        .content("{\"name\":\"Nuevo nombre\",\"wazuhIp\":\"10.0.0.2\",\"wazuhUser\":\"nuevo-wazuh\",\"wazuhPassword\":\"\",\"userId\":1}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Nuevo nombre"))
-                .andExpect(jsonPath("$.sshUser").value("nuevo-ssh"))
+                .andExpect(jsonPath("$.wazuhIp").value("10.0.0.2"))
                 .andExpect(jsonPath("$.wazuhUser").value("nuevo-wazuh"));
 
         ArgumentCaptor<InfrastructureCredentialEntity> captor = ArgumentCaptor.forClass(InfrastructureCredentialEntity.class);
         verify(service).save(captor.capture());
-        assertEquals("ssh-pass", captor.getValue().getSshPassword());
+
         assertEquals("wazuh-pass", captor.getValue().getWazuhPassword());
     }
 
@@ -91,7 +90,7 @@ class InfrastructureCredentialControllerTest {
 
         mockMvc.perform(put("/api/infra-credentials/99")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Laboratorio\",\"sshUser\":\"root\",\"sshPassword\":\"ssh-pass\",\"wazuhUser\":\"wazuh-api\",\"wazuhPassword\":\"wazuh-pass\",\"userId\":1}"))
+                        .content("{\"name\":\"Laboratorio\",\"wazuhIp\":\"10.0.0.1\",\"wazuhUser\":\"wazuh-api\",\"wazuhPassword\":\"wazuh-pass\",\"userId\":1}"))
                 .andExpect(status().isNotFound());
     }
 

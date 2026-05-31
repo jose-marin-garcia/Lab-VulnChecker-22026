@@ -122,6 +122,11 @@
 			<artifactId>spring-boot-devtools</artifactId>
 			<optional>true</optional>
 		</dependency>
+		<dependency>
+			<groupId>com.google.crypto.tink</groupId>
+			<artifactId>tink</artifactId>
+			<version>1.13.0</version>
+		</dependency>
 	</dependencies>
 
 	<build>

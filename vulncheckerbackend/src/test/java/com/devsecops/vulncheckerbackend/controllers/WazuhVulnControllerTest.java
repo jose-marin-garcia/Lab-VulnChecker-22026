@@ -57,52 +57,54 @@ class WazuhVulnControllerTest {
     private JwtUtil jwtUtil;
 
     @Test
-    void getAllLegacy_returnsDataWithDecodedCredentials() throws Exception {
+    void getAllLegacy_returnsData() throws Exception {
+        InfrastructureCredentialEntity infraCredential = TestDataFactory.infrastructureCredential(1L, 9L);
+        when(infraRepo.findById(1L)).thenReturn(Optional.of(infraCredential));
         when(wazuhService.getAllVulnerabilities(any(WazuhCredentials.class), eq(100), eq(0)))
                 .thenReturn(Map.of("ok", true));
 
-        mockMvc.perform(get("/api/vulns/10.0.0.1/root/ssh-pass/all")
-                        .header("Authorization", TestDataFactory.basicAuthHeader("wazuh", "api-pass")))
+        mockMvc.perform(get("/api/vulns/1/all"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ok").value(true));
 
         ArgumentCaptor<WazuhCredentials> captor = ArgumentCaptor.forClass(WazuhCredentials.class);
         verify(wazuhService).getAllVulnerabilities(captor.capture(), eq(100), eq(0));
-        assertEquals("10.0.0.1", captor.getValue().sshHost());
-        assertEquals("root", captor.getValue().sshUser());
-        assertEquals("ssh-pass", captor.getValue().sshPassword());
-        assertEquals("wazuh", captor.getValue().wazuhUser());
+        assertEquals("10.0.0.1", captor.getValue().wazuhHost());
+        assertEquals("wazuh-api", captor.getValue().wazuhUser());
     }
 
     @Test
-    void getTop_usesFixedRouteWithSshPathVariables() throws Exception {
+    void getTop_usesFixedRouteWithCredentialId() throws Exception {
+        InfrastructureCredentialEntity infraCredential = TestDataFactory.infrastructureCredential(1L, 9L);
+        when(infraRepo.findById(1L)).thenReturn(Optional.of(infraCredential));
         when(wazuhService.getTopVulnerabilities(any(WazuhCredentials.class), eq(5)))
                 .thenReturn(Map.of("total", 5));
 
-        mockMvc.perform(get("/api/vulns/10.0.0.1/root/ssh-pass/top/5")
-                        .header("Authorization", TestDataFactory.basicAuthHeader("api", "pass")))
+        mockMvc.perform(get("/api/vulns/1/top/5"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(5));
     }
 
     @Test
     void getSummary_mapsTimeoutErrorWithFriendlyMessage() throws Exception {
+        InfrastructureCredentialEntity infraCredential = TestDataFactory.infrastructureCredential(1L, 9L);
+        when(infraRepo.findById(1L)).thenReturn(Optional.of(infraCredential));
         when(wazuhService.getVulnerabilitiesSummary(any(WazuhCredentials.class)))
                 .thenThrow(new RuntimeException("timeout: socket is not established"));
 
-        mockMvc.perform(get("/api/vulns/host/user/password/summary")
-                        .header("Authorization", TestDataFactory.basicAuthHeader("api", "pass")))
+        mockMvc.perform(get("/api/vulns/1/summary"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("No se pudo establecer conexión SSH (Timeout). Verifica que la IP sea correcta y el puerto 22 esté abierto."));
     }
 
     @Test
     void getCritical_mapsAuthFailError() throws Exception {
+        InfrastructureCredentialEntity infraCredential = TestDataFactory.infrastructureCredential(1L, 9L);
+        when(infraRepo.findById(1L)).thenReturn(Optional.of(infraCredential));
         when(wazuhService.getCriticalVulnerabilities(any(WazuhCredentials.class)))
                 .thenThrow(new RuntimeException("Auth fail"));
 
-        mockMvc.perform(get("/api/vulns/host/user/password/critical")
-                        .header("Authorization", TestDataFactory.basicAuthHeader("api", "pass")))
+        mockMvc.perform(get("/api/vulns/1/critical"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.message").value("Credenciales SSH incorrectas."));
     }

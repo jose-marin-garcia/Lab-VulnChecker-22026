@@ -30,11 +30,7 @@ public class InfrastructureCredentialController {
         return service.findById(id)
                 .map(existingCredential -> {
                     existingCredential.setName(credentialDetails.getName());
-                    existingCredential.setSshUser(credentialDetails.getSshUser());
-                    // Solo actualizar contraseña si se envió una nueva
-                    if (credentialDetails.getSshPassword() != null && !credentialDetails.getSshPassword().isEmpty()) {
-                        existingCredential.setSshPassword(credentialDetails.getSshPassword());
-                    }
+                    existingCredential.setWazuhIp(credentialDetails.getWazuhIp());
                     existingCredential.setWazuhUser(credentialDetails.getWazuhUser());
                     if (credentialDetails.getWazuhPassword() != null && !credentialDetails.getWazuhPassword().isEmpty()) {
                         existingCredential.setWazuhPassword(credentialDetails.getWazuhPassword());

@@ -1,7 +1,7 @@
 package com.devsecops.vulncheckerbackend.entities;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
+
 
 @Entity
 @Table(name = "infrastructure_credentials")
@@ -14,20 +14,15 @@ public class InfrastructureCredentialEntity {
     @Column(nullable = false)
     private String name; // Ej: "Laboratorio Ethical Hacking"
 
-    // Credenciales SSH
-    @Column(name = "ssh_user")
-    private String sshUser;
-
-    @Column(name = "ssh_password")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private String sshPassword;
+    // Wazuh Host/IP
+    @Column(name = "wazuh_ip")
+    private String wazuhIp;
 
     // Credenciales Wazuh API
     @Column(name = "wazuh_user")
     private String wazuhUser;
 
     @Column(name = "wazuh_password")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String wazuhPassword;
 
     @Column(name = "user_id", nullable = false)
@@ -41,10 +36,8 @@ public class InfrastructureCredentialEntity {
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-    public String getSshUser() { return sshUser; }
-    public void setSshUser(String sshUser) { this.sshUser = sshUser; }
-    public String getSshPassword() { return sshPassword; }
-    public void setSshPassword(String sshPassword) { this.sshPassword = sshPassword; }
+    public String getWazuhIp() { return wazuhIp; }
+    public void setWazuhIp(String wazuhIp) { this.wazuhIp = wazuhIp; }
     public String getWazuhUser() { return wazuhUser; }
     public void setWazuhUser(String wazuhUser) { this.wazuhUser = wazuhUser; }
     public String getWazuhPassword() { return wazuhPassword; }

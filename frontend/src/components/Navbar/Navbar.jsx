@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LogOut, User } from 'lucide-react';
 import './Navbar.css';
+import Consumer from '../ui/consumer';
 
 const Navbar = () => {
     const navigate = useNavigate();
@@ -29,6 +30,7 @@ const Navbar = () => {
                 <span className="nav-logo-text">VulnChecker</span>
                 <span className="nav-separator">|</span>
                 <span className="nav-page-title">{titles[location.pathname] || 'Gestión'}</span>
+                <Consumer></Consumer>
             </div>
 
             <div className="nav-right">
@@ -36,7 +38,7 @@ const Navbar = () => {
                     <User size={16} color="#007bff" />
                     <span>{userName}</span>
                 </div>
-                
+
                 <button onClick={handleLogout} className="nav-logout-button">
                     <LogOut size={16} />
                     <span className="logout-text">Cerrar Sesión</span>

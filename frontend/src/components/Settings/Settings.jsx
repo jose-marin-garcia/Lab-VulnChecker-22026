@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { 
-    ShieldCheck, Lock, User, Server, Database, Edit2, X, 
-    Users, Check, Trash2, UserCheck 
+import {
+    ShieldCheck, Lock, User, Server, Database, Edit2, X,
+    Users, Check, Trash2, UserCheck
 } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
@@ -12,12 +12,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 const Settings = () => {
     // Estados Infraestructura
     const [infraName, setInfraName] = useState('');
-    const [sshUser, setSshUser] = useState('');
-    const [sshPass, setSshPass] = useState('');
+    const [wazuhIp, setWazuhIp] = useState('');
     const [wazuhUser, setWazuhUser] = useState('');
     const [wazuhPass, setWazuhPass] = useState('');
     const [infraCredentials, setInfraCredentials] = useState([]);
-    
+
     // Estados Admin (Gestión de Usuarios)
     const [pendingUsers, setPendingUsers] = useState([]);
     const userRole = localStorage.getItem('user_role'); // USER o ADMIN
@@ -40,8 +39,8 @@ const Settings = () => {
                 const resUsers = await apiClient.get(`${API_BASE_URL}/api/users/pending`);
                 if (resUsers.ok) setPendingUsers(await resUsers.json());
             }
-        } catch (error) { 
-            console.error('Error al cargar datos:', error); 
+        } catch (error) {
+            console.error('Error al cargar datos:', error);
         }
     }, [userId, userRole]);
 
@@ -68,8 +67,7 @@ const Settings = () => {
     const startEdit = (cred) => {
         setEditingId(cred.id);
         setInfraName(cred.name);
-        setSshUser(cred.sshUser);
-        setSshPass(''); 
+        setWazuhIp(cred.wazuhIp);
         setWazuhUser(cred.wazuhUser);
         setWazuhPass('');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -77,7 +75,7 @@ const Settings = () => {
 
     const cancelEdit = () => {
         setEditingId(null);
-        setInfraName(''); setSshUser(''); setSshPass(''); setWazuhUser(''); setWazuhPass('');
+        setInfraName(''); setWazuhIp(''); setWazuhUser(''); setWazuhPass('');
     };
 
     const handleSubmit = (e) => {
@@ -88,7 +86,7 @@ const Settings = () => {
     const handleVerifyAndSave = async () => {
         setLoading(true);
         // Aquí iría tu fetch real de validación de password contra el backend
-        const isPasswordCorrect = true; 
+        const isPasswordCorrect = true;
 
         if (!isPasswordCorrect) {
             alert("Contraseña incorrecta");
@@ -99,14 +97,13 @@ const Settings = () => {
         const payload = {
             userId,
             name: infraName,
-            sshUser,
-            sshPassword: sshPass,
+            wazuhIp,
             wazuhUser,
             wazuhPassword: wazuhPass
         };
 
         try {
-            const url = editingId 
+            const url = editingId
                 ? `${API_BASE_URL}/api/infra-credentials/${editingId}`
                 : `${API_BASE_URL}/api/infra-credentials`;
             const response = editingId
@@ -118,6 +115,7 @@ const Settings = () => {
                 fetchData();
                 setShowVerifyModal(false);
                 setUserPasswordVerify('');
+                window.dispatchEvent(new CustomEvent('reloadCredentials')); // Actualiza lista en layout
             }
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
@@ -138,10 +136,10 @@ const Settings = () => {
                             Ingresa tu contraseña para confirmar los cambios en <strong>{infraName}</strong>.
                         </p>
                         <div className="form-group">
-                            <label><Lock size={14}/> Contraseña de acceso</label>
-                            <input 
-                                type="password" 
-                                value={userPasswordVerify} 
+                            <label><Lock size={14} /> Contraseña de acceso</label>
+                            <input
+                                type="password"
+                                value={userPasswordVerify}
                                 onChange={(e) => setUserPasswordVerify(e.target.value)}
                                 placeholder="Escribe tu contraseña"
                                 autoFocus required className="modal-input"
@@ -158,7 +156,7 @@ const Settings = () => {
             )}
 
             <main className="settings-content">
-                
+
                 {/* --- SECCIÓN ADMINISTRADOR: USUARIOS PENDIENTES --- */}
                 {userRole === 'ADMIN' && (
                     <section className="settings-section admin-box">
@@ -186,17 +184,17 @@ const Settings = () => {
                                         {pendingUsers.map(u => (
                                             <tr key={u.id}>
                                                 <td>{`${u.firstName} ${u.paternalLastName} ${u.maternalLastName}`}</td>
-                                                <td style={{color: '#888'}}>{u.email}</td>
+                                                <td style={{ color: '#888' }}>{u.email}</td>
                                                 <td>
                                                     <div className="admin-actions">
-                                                        <button 
+                                                        <button
                                                             className="approve-btn"
                                                             onClick={() => handleActivateUser(u.id)}
                                                             title="Activar Usuario"
                                                         >
                                                             <UserCheck size={16} />
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             className="delete-btn"
                                                             onClick={() => handleDeleteUser(u.id)}
                                                             title="Rechazar"
@@ -225,25 +223,21 @@ const Settings = () => {
                             <p>{editingId ? `Modificando: ${infraName}` : 'Configura accesos SSH y Wazuh.'}</p>
                         </div>
                         {editingId && (
-                            <button onClick={cancelEdit} className="cancel-edit-btn" style={{marginLeft: 'auto'}}>
-                                <X size={16}/> Cancelar Edición
+                            <button onClick={cancelEdit} className="cancel-edit-btn" style={{ marginLeft: 'auto' }}>
+                                <X size={16} /> Cancelar Edición
                             </button>
                         )}
                     </div>
-                    
+
                     <form className="credential-form" onSubmit={handleSubmit}>
                         <div className="form-grid">
-                            <div className="form-group full-width">
+                            <div className="form-group">
                                 <label><Database size={16} /> Nombre del Perfil</label>
                                 <input type="text" value={infraName} onChange={(e) => setInfraName(e.target.value)} required />
                             </div>
                             <div className="form-group">
-                                <label><User size={14} /> Usuario SSH</label>
-                                <input type="text" value={sshUser} onChange={(e) => setSshUser(e.target.value)} required />
-                            </div>
-                            <div className="form-group">
-                                <label><Lock size={14} /> Pass SSH {editingId && '(Nueva)'}</label>
-                                <input type="password" value={sshPass} onChange={(e) => setSshPass(e.target.value)} placeholder="••••" required={!editingId} />
+                                <label><Server size={15} /> Wazuh IP</label>
+                                <input type="text" value={wazuhIp} onChange={(e) => setWazuhIp(e.target.value)} required />
                             </div>
                             <div className="form-group">
                                 <label><User size={14} /> Usuario Wazuh</label>
@@ -271,7 +265,7 @@ const Settings = () => {
                             </thead>
                             <tbody>
                                 {infraCredentials.map((cred) => (
-                                    <tr key={cred.id} style={editingId === cred.id ? {backgroundColor: 'rgba(0, 123, 255, 0.05)'} : {}}>
+                                    <tr key={cred.id} style={editingId === cred.id ? { backgroundColor: 'rgba(0, 123, 255, 0.05)' } : {}}>
                                         <td style={{ fontWeight: 'bold' }}>{cred.name}</td>
                                         <td>{cred.sshUser} / {cred.wazuhUser}</td>
                                         <td>

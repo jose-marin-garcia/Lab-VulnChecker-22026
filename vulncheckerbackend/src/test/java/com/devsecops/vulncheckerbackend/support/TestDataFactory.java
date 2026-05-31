@@ -42,8 +42,7 @@ public final class TestDataFactory {
         credential.setId(id);
         credential.setUserId(userId);
         credential.setName("Laboratorio");
-        credential.setSshUser("root");
-        credential.setSshPassword("ssh-pass");
+        credential.setWazuhIp("10.0.0.1");
         credential.setWazuhUser("wazuh-api");
         credential.setWazuhPassword("wazuh-pass");
         return credential;

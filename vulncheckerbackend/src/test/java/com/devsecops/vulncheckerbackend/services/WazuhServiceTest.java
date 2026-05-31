@@ -1,10 +1,8 @@
 package com.devsecops.vulncheckerbackend.services;
 
-import com.devsecops.vulncheckerbackend.config.SshTunnelManager;
-import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
+import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
-import com.jcraft.jsch.Session;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,9 +28,6 @@ import static org.mockito.Mockito.*;
 class WazuhServiceTest {
 
     @Mock
-    private SshTunnelManager tunnelManager;
-
-    @Mock
     private RestTemplate restTemplate;
 
     @Mock
@@ -41,25 +36,20 @@ class WazuhServiceTest {
     @Mock
     private VulnerabilitySnapshotRepository snapshotRepository;
 
-    @Mock
-    private Session session;
-
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
-            "10.0.0.1", "root", "ssh-pass", "api-user", "api-pass"
+            "10.0.0.1", "api-user", "api-pass"
     );
 
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        service = new WazuhService(tunnelManager, restTemplate, vulnerabilityRepository, snapshotRepository, directExecutor);
+        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository, directExecutor);
     }
 
     @Test
     void getAllVulnerabilities_queriesWazuhWithoutPersistingSnapshots() throws Exception {
-        when(tunnelManager.openTunnel("10.0.0.1", 22, "root", "ssh-pass")).thenReturn(session);
-        when(tunnelManager.getLocalPort()).thenReturn(9201);
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.POST),
@@ -72,8 +62,6 @@ class WazuhServiceTest {
         assertNotNull(result);
         verifyNoInteractions(vulnerabilityRepository);
         verifyNoInteractions(snapshotRepository);
-        verify(tunnelManager).closeTunnel(session);
-
         ArgumentCaptor<HttpEntity<String>> requestCaptor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).exchange(
                 anyString(),
@@ -88,9 +76,7 @@ class WazuhServiceTest {
     }
 
     @Test
-    void getAllVulnerabilities_closesTunnelWhenSearchFails() throws Exception {
-        when(tunnelManager.openTunnel(anyString(), eq(22), anyString(), anyString())).thenReturn(session);
-        when(tunnelManager.getLocalPort()).thenReturn(9201);
+    void getAllVulnerabilities_throwsExceptionWhenSearchFails() throws Exception {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.POST),
@@ -99,13 +85,10 @@ class WazuhServiceTest {
         )).thenThrow(new RuntimeException("network error"));
 
         assertThrows(RuntimeException.class, () -> service.getAllVulnerabilities(CREDS, 100, 0));
-        verify(tunnelManager).closeTunnel(session);
     }
 
     @Test
-    void getRemoteTotalCount_parsesCountAndClosesTunnel() throws Exception {
-        when(tunnelManager.openTunnel("10.0.0.1", 22, "root", "ssh-pass")).thenReturn(session);
-        when(tunnelManager.getLocalPort()).thenReturn(9201);
+    void getRemoteTotalCount_parsesCount() throws Exception {
         when(restTemplate.exchange(
                 anyString(),
                 eq(HttpMethod.GET),
@@ -116,13 +99,10 @@ class WazuhServiceTest {
         long count = service.getRemoteTotalCount(CREDS);
 
         assertEquals(42L, count);
-        verify(tunnelManager).closeTunnel(session);
     }
 
     @Test
     void syncAllVulnerabilitiesMasive_processesBatchAndStopsOnEmptyPage() throws Exception {
-        when(tunnelManager.openTunnel("10.0.0.1", 22, "root", "ssh-pass")).thenReturn(session);
-        when(tunnelManager.getLocalPort()).thenReturn(9201);
         when(vulnerabilityRepository.existsByCveAndAgentIdAndPackageName("CVE-2026-2000", "001", "openssl")).thenReturn(false);
 
         Map<String, Object> firstPage = searchResponse(List.of(singleHit("CVE-2026-2000", "Critical", "001", "openssl", List.of(1700000002L, "def"))));
@@ -145,7 +125,6 @@ class WazuhServiceTest {
             return size == 1;
         }));
         verify(snapshotRepository).save(any());
-        verify(tunnelManager).closeTunnel(session);
         verify(restTemplate, times(2)).exchange(
                 anyString(),
                 eq(HttpMethod.POST),

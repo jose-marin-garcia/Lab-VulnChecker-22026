@@ -1,7 +1,5 @@
 package com.devsecops.vulncheckerbackend.services;
 
-import com.jcraft.jsch.Session;
-import com.devsecops.vulncheckerbackend.config.SshTunnelManager;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilityEntity;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilitySnapshotEntity;
@@ -29,7 +27,6 @@ public class WazuhService {
     // 1. Uso de Logger en lugar de System.out (Code Smell: Major)
     private static final Logger log = LoggerFactory.getLogger(WazuhService.class);
 
-    private final SshTunnelManager tunnelManager;
     private final RestTemplate restTemplate;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final VulnerabilitySnapshotRepository snapshotRepository;
@@ -41,12 +38,10 @@ public class WazuhService {
     @Value("${wazuh.index.monitoring}")
     private String monitoringIndex;
 
-    public WazuhService(SshTunnelManager tunnelManager,
-                        @Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
+    public WazuhService(@Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
                         VulnerabilityRepository vulnerabilityRepository,
                         VulnerabilitySnapshotRepository snapshotRepository,
                         @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
-        this.tunnelManager = tunnelManager;
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
@@ -56,6 +51,17 @@ public class WazuhService {
     // ─────────────────────────────────────────────────────────────────────────
     //  MÉTODOS PÚBLICOS
     // ─────────────────────────────────────────────────────────────────────────
+
+    private String currentSyncStatus = "IDLE";
+    private String currentSyncError = null;
+
+    public String getCurrentSyncStatus() {
+        return currentSyncStatus;
+    }
+
+    public String getCurrentSyncError() {
+        return currentSyncError;
+    }
 
     public Map<String, Object> getAllVulnerabilities(WazuhCredentials creds, int limit, int offset) throws Exception {
         int pageSize = Math.min(limit, 5000); 
@@ -69,7 +75,7 @@ public class WazuhService {
                 }
                 """.formatted(offset, pageSize);
         
-        return executeWithTunnel(creds, body);
+        return executeDirectly(creds, body);
     }
 
     public Map<String, Object> getTopVulnerabilities(WazuhCredentials creds, int limit) throws Exception {
@@ -85,7 +91,7 @@ public class WazuhService {
                   }
                 }
                 """.formatted(limit, severity.toLowerCase());
-        return executeWithTunnel(creds, body);
+        return executeDirectly(creds, body);
     }
 
     public Map<String, Object> getVulnerabilitiesByAgent(WazuhCredentials creds, String agentId, int limit) throws Exception {
@@ -97,7 +103,7 @@ public class WazuhService {
                   }
                 }
                 """.formatted(limit, agentId);
-        return executeWithTunnel(creds, body);
+        return executeDirectly(creds, body);
     }
 
     public Map<String, Object> getVulnerabilitiesByCve(WazuhCredentials creds, String cve) throws Exception {
@@ -109,7 +115,7 @@ public class WazuhService {
                   }
                 }
                 """.formatted(cve.toUpperCase());
-        return executeWithTunnel(creds, body);
+        return executeDirectly(creds, body);
     }
 
     public Map<String, Object> getCriticalVulnerabilities(WazuhCredentials creds) throws Exception {
@@ -127,28 +133,22 @@ public class WazuhService {
                   }
                 }
                 """;
-        return executeWithTunnel(creds, body);
+        return executeDirectly(creds, body);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  INFRAESTRUCTURA
     // ─────────────────────────────────────────────────────────────────────────
 
-    private Map<String, Object> executeWithTunnel(WazuhCredentials creds, String queryBody) throws Exception {
-        // Este es el log que verás en tu consola de IntelliJ/Eclipse
-        log.info(">>> EJECUTANDO ACCESO: Host SSH: {} | Usuario SSH: {} | Usuario Wazuh: {}", 
-                creds.sshHost(), creds.sshUser(), creds.wazuhUser());
+    private Map<String, Object> executeDirectly(WazuhCredentials creds, String queryBody) throws Exception {
+        log.info(">>> EJECUTANDO ACCESO: Host Wazuh: {} | Usuario Wazuh: {}", 
+                creds.wazuhHost(), creds.wazuhUser());
 
-        Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
-        try {
-            return search(queryBody, creds.wazuhUser(), creds.wazuhPassword());
-        } finally {
-            tunnelManager.closeTunnel(session);
-        }
+        return search(queryBody, creds);
     }
 
-    private Map<String, Object> search(String queryBody, String user, String password) {
-        String auth = user + ":" + password;
+    private Map<String, Object> search(String queryBody, WazuhCredentials creds) {
+        String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
         String credentials = Base64.getEncoder().encodeToString(
                 auth.getBytes(java.nio.charset.StandardCharsets.UTF_8)
         );
@@ -157,7 +157,7 @@ public class WazuhService {
         headers.set("Authorization", "Basic " + credentials);
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        String url = wazuhBaseUrl() + "/" + vulnIndex + "/_search";
+        String url = wazuhBaseUrl(creds) + "/" + vulnIndex + "/_search";
 
         ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                 url, HttpMethod.POST, new HttpEntity<>(queryBody, headers), 
@@ -168,30 +168,22 @@ public class WazuhService {
     }
 
     public long getRemoteTotalCount(WazuhCredentials creds) throws Exception {
-        // Abrimos túnel solo para esta consulta rápida
-        Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
+        String url = wazuhBaseUrl(creds) + "/" + vulnIndex + "/_count";
+        
+        HttpHeaders headers = new HttpHeaders();
+        String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
+        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+        headers.set("Authorization", "Basic " + encodedAuth);
+
         try {
-            String url = wazuhBaseUrl() + "/" + vulnIndex + "/_count";
-            
-            HttpHeaders headers = new HttpHeaders();
-            String auth = creds.wazuhUser() + ":" + creds.wazuhPassword();
-            String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
-            headers.set("Authorization", "Basic " + encodedAuth);
-
-            try {
-                ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                        url, HttpMethod.GET, new HttpEntity<>(headers),
-                        new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
-                );
-                return Long.parseLong(response.getBody().get("count").toString());
-            } catch (Exception e) {
-                System.err.println("Error inesperado al conectarse con elasticSearch: " + e.getMessage());
-                throw e;
-            }
-
-
-        } finally {
-            tunnelManager.closeTunnel(session);
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(headers),
+                    new org.springframework.core.ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+            return Long.parseLong(response.getBody().get("count").toString());
+        } catch (Exception e) {
+            System.err.println("Error inesperado al conectarse con elasticSearch: " + e.getMessage());
+            throw e;
         }
     }
 
@@ -242,9 +234,11 @@ public class WazuhService {
         int getTotal() { return crit + high + med + low; }
     }
 
-   public void syncAllVulnerabilitiesMasive(WazuhCredentials creds) {
+    public void syncAllVulnerabilitiesMasive(WazuhCredentials creds) {
+        currentSyncStatus = "RUNNING";
+        currentSyncError = null;
         taskExecutor.execute(() -> {
-            log.info("INICIANDO EXTRACCIÓN MASIVA PARA: {}", creds.sshHost());
+            log.info("INICIANDO EXTRACCIÓN MASIVA PARA: {}", creds.wazuhHost());
             int pageSize = 5000;
             Object[] lastSortValues = null;
             boolean hasMore = true;
@@ -253,8 +247,7 @@ public class WazuhService {
 
             try {
                 LocalDateTime currentSyncTime = LocalDateTime.now();
-                // Abrimos túnel específico para este hilo
-                Session session = tunnelManager.openTunnel(creds.sshHost(), 22, creds.sshUser(), creds.sshPassword());
+                
                 try {
                     Map<String, String> agentGroupsDict = fetchAgentGroups(creds);
 
@@ -275,7 +268,7 @@ public class WazuhService {
                             }
                             """.formatted(pageSize, searchAfterClause);
 
-                        Map<String, Object> response = search(body, creds.wazuhUser(), creds.wazuhPassword());
+                        Map<String, Object> response = search(body, creds);
                         
                         if (response != null && response.containsKey("hits")) {
                             Map<String, Object> hitsStructure = (Map<String, Object>) response.get("hits");
@@ -289,7 +282,7 @@ public class WazuhService {
                                 
                                 totalProcesados += hits.size();
                                 lastSortValues = ((List<Object>) hits.get(hits.size() - 1).get("sort")).toArray();
-                                log.info("[{}] Progreso: {} registros...", creds.sshHost(), totalProcesados);
+                                log.info("[{}] Progreso: {} registros...", creds.wazuhHost(), totalProcesados);
                             }
                         } else { hasMore = false; }
                     }
@@ -303,11 +296,13 @@ public class WazuhService {
                         log.info("Fase Sweep completada: vulnerabilidades antiguas marcadas como Resolved.");
                     }
                     
-                    tunnelManager.closeTunnel(session);
-                    log.info("FINALIZADO: {} registros guardados de {}", totalProcesados, creds.sshHost());
+                    log.info("FINALIZADO: {} registros guardados de {}", totalProcesados, creds.wazuhHost());
+                    currentSyncStatus = "COMPLETED";
                 }
             } catch (Exception e) {
                 log.error("ERROR CRÍTICO EN HILO DE SINCRONIZACIÓN: ", e);
+                currentSyncError = e.getMessage() != null ? e.getMessage() : "Error desconocido";
+                currentSyncStatus = "ERROR";
             }
         });
     }
@@ -393,8 +388,8 @@ public class WazuhService {
         }
     }
 
-    private String wazuhBaseUrl() {
-        return "https://127.0.0.1:" + tunnelManager.getLocalPort();
+    private String wazuhBaseUrl(WazuhCredentials creds) {
+        return "https://" + creds.wazuhHost() + ":9200";
     }
 
     private Map<String, String> fetchAgentGroups(WazuhCredentials creds) {
@@ -418,7 +413,7 @@ public class WazuhService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             // Consultamos el índice de monitoreo de agentes en vez de la API
-            String url = wazuhBaseUrl() + "/" + monitoringIndex + "/_search";
+            String url = wazuhBaseUrl(creds) + "/" + monitoringIndex + "/_search";
 
             ResponseEntity<Map> response = restTemplate.exchange(
                     url, HttpMethod.POST, new HttpEntity<>(queryBody, headers), Map.class

@@ -10,10 +10,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL;
 const Consumer = () => {
     const navigate = useNavigate();
     const userId = localStorage.getItem('user_id');
-    
+
     const [servers, setServers] = useState([{ id: 1, ip: '', port: '', credentialId: '' }]);
     const [availableCredentials, setAvailableCredentials] = useState([]);
-    const [nextServerId, setNextServerId] = useState(2);    
+    const [nextServerId, setNextServerId] = useState(2);
     const [loading, setLoading] = useState(false);
     const [progressCount, setProgressCount] = useState(0);
     const [totalTarget, setTotalTarget] = useState(0);
@@ -26,11 +26,11 @@ const Consumer = () => {
             interval = setInterval(async () => {
                 try {
                     const res = await apiClient.get(`${API_BASE_URL}/api/vulns/count-local`);
-
+                    console.log(res);
                     if (res.ok) {
                         const data = await res.json();
-                        setProgressCount(data.count); 
-                        
+                        setProgressCount(data.count);
+
                         // Si llegamos al objetivo, desactivamos el loading
                         if (data.count >= totalTarget && totalTarget > 0) {
                             setLoading(false);
@@ -83,7 +83,7 @@ const Consumer = () => {
         setLoading(true);
         setProgressCount(0);
         setError(null);
-        
+
         let totalCule = 0;
 
         try {
@@ -105,7 +105,6 @@ const Consumer = () => {
                 setTotalTarget(totalCule);
 
                 const consumeRes = await apiClient.post(`${API_BASE_URL}/api/vulns/consume`, {
-                    ip: server.ip,
                     infrastructureCredentialId: parseInt(server.credentialId)
                 });
 
@@ -127,9 +126,9 @@ const Consumer = () => {
         <div className="consumer-container">
             <main className="consumer-content-wrapper">
                 <header className="consumer-header">
-                    <button 
-                        className="back-button" 
-                        onClick={() => navigate(-1)} 
+                    <button
+                        className="back-button"
+                        onClick={() => navigate(-1)}
                         disabled={loading} // No dejar volver mientras procesa
                     >
                         <ArrowLeft size={24} />
@@ -143,8 +142,8 @@ const Consumer = () => {
                             <Database size={60} />
                         </div>
                         <p className="main-subtitle">
-                            {loading 
-                                ? "Sincronizando vulnerabilidades con la base de datos local..." 
+                            {loading
+                                ? "Sincronizando vulnerabilidades con la base de datos local..."
                                 : "Asocia tus servidores con los perfiles de credenciales registrados"}
                         </p>
                     </div>
@@ -153,30 +152,6 @@ const Consumer = () => {
                         <div className="servers-list">
                             {servers.map((server) => (
                                 <div key={server.id} className={`server-row ${loading ? 'row-disabled' : ''}`}>
-                                    <div className="input-group">
-                                        <label>Dirección IP</label>
-                                        <input
-                                            type="text"
-                                            disabled={loading}
-                                            placeholder="192.168.1.XX"
-                                            value={server.ip}
-                                            onChange={(e) => handleInputChange(server.id, 'ip', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    {/* 
-                                    <div className="input-group">
-                                        <label>Puerto</label>
-                                        <input
-                                            type="number"
-                                            disabled={loading}
-                                            placeholder="55000"
-                                            value={server.port}
-                                            onChange={(e) => handleInputChange(server.id, 'port', e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    */}
                                     <div className="input-group">
                                         <label>Perfil de Credencial</label>
                                         <select
@@ -195,9 +170,9 @@ const Consumer = () => {
 
                                     <div className="actions-group">
                                         {servers.length > 1 && !loading && (
-                                            <button 
-                                                type="button" 
-                                                className="remove-btn" 
+                                            <button
+                                                type="button"
+                                                className="remove-btn"
                                                 onClick={() => removeServer(server.id)}
                                             >
                                                 <Trash2 size={20} />
@@ -208,7 +183,7 @@ const Consumer = () => {
                             ))}
                         </div>
 
-                                                {error && (
+                        {error && (
                             <div className="consumer-error">
                                 <span>{error}</span>
                             </div>
@@ -222,9 +197,9 @@ const Consumer = () => {
                         )}
 
                         {/* BOTÓN DINÁMICO */}
-                        <button 
-                            type="submit" 
-                            className={`submit-btn ${loading ? 'loading-active' : ''}`} 
+                        <button
+                            type="submit"
+                            className={`submit-btn ${loading ? 'loading-active' : ''}`}
                             disabled={loading}
                         >
                             {loading ? (
