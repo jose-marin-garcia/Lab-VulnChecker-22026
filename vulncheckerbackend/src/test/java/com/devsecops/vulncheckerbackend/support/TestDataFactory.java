@@ -2,7 +2,6 @@ package com.devsecops.vulncheckerbackend.support;
 
 import com.devsecops.vulncheckerbackend.dto.ReportSignatureRequest;
 import com.devsecops.vulncheckerbackend.dto.VulnerabilityRequest;
-import com.devsecops.vulncheckerbackend.entities.CredentialEntity;
 import com.devsecops.vulncheckerbackend.entities.InfrastructureCredentialEntity;
 import com.devsecops.vulncheckerbackend.entities.ReportSignatureEntity;
 import com.devsecops.vulncheckerbackend.entities.UserEntity;
@@ -26,15 +25,6 @@ public final class TestDataFactory {
         user.setEmail("admin.seguridad@usach.cl");
         user.setPassword("admin123");
         return user;
-    }
-
-    public static CredentialEntity credential(Long id, Long userId) {
-        CredentialEntity credential = new CredentialEntity();
-        credential.setId(id);
-        credential.setCreatedByUserId(userId);
-        credential.setUsernameCredentials("wazuh-user");
-        credential.setPasswordCredentials("wazuh-pass");
-        return credential;
     }
 
     public static InfrastructureCredentialEntity infrastructureCredential(Long id, Long userId) {
