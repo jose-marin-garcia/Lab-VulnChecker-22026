@@ -10,12 +10,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +30,36 @@ public class WazuhService {
     // 1. Uso de Logger en lugar de System.out (Code Smell: Major)
     private static final Logger log = LoggerFactory.getLogger(WazuhService.class);
 
+    // Batch upsert: INSERT ... ON CONFLICT ... DO UPDATE
+    // This replaces the individual SELECT + INSERT/UPDATE pattern (25M queries → 5K queries)
+    private static final String UPSERT_SQL = """
+        INSERT INTO vulnerabilities (
+            cve, agent_id, agent_name, agent_group, package_name, package_version,
+            severity, cvss3_score, title, description, detection_time,
+            status, last_sync, resolved_at
+        ) VALUES (
+            :cve, :agentId, :agentName, :agentGroup, :packageName, :packageVersion,
+            :severity, :cvss3Score, :title, :description, :detectionTime,
+            'Active', :lastSync, NULL
+        )
+        ON CONFLICT (cve, agent_id, package_name) DO UPDATE SET
+            agent_name = EXCLUDED.agent_name,
+            agent_group = EXCLUDED.agent_group,
+            package_version = EXCLUDED.package_version,
+            severity = EXCLUDED.severity,
+            cvss3_score = EXCLUDED.cvss3_score,
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            detection_time = EXCLUDED.detection_time,
+            status = 'Active',
+            last_sync = EXCLUDED.last_sync,
+            resolved_at = NULL
+        """;
+
     private final RestTemplate restTemplate;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final VulnerabilitySnapshotRepository snapshotRepository;
+    private final NamedParameterJdbcTemplate namedJdbcTemplate;
     private final Executor taskExecutor;
 
     @Value("${wazuh.index.vulnerabilities}")
@@ -41,10 +71,12 @@ public class WazuhService {
     public WazuhService(@Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
                         VulnerabilityRepository vulnerabilityRepository,
                         VulnerabilitySnapshotRepository snapshotRepository,
+                        NamedParameterJdbcTemplate namedJdbcTemplate,
                         @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
+        this.namedJdbcTemplate = namedJdbcTemplate;
         this.taskExecutor = taskExecutor;
     }
 
@@ -308,7 +340,7 @@ public class WazuhService {
     }
 
     private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent, Map<String, String> agentGroupsDict, LocalDateTime currentSyncTime) {
-        List<VulnerabilityEntity> entitiesToSave = new java.util.ArrayList<>();
+        List<MapSqlParameterSource> batchArgs = new ArrayList<>();
 
         for (Map<String, Object> hit : hits) {
             try {
@@ -323,69 +355,58 @@ public class WazuhService {
 
                 countersByAgent.computeIfAbsent(agentId, ignored -> new SnapshotCounter()).count(source);
 
-                java.util.Optional<VulnerabilityEntity> optEntity = vulnerabilityRepository.findByCveAndAgentIdAndPackageName(cve, agentId, pkgName);
-                VulnerabilityEntity entity;
-                
-                if (optEntity.isPresent()) {
-                    entity = optEntity.get();
-                    // Si ya existía, la actualizamos para que no la barra el Sweep
-                    entity.setLastSync(currentSyncTime);
-                    entity.setStatus("Active");
-                    entity.setResolvedAt(null);
-                } else {
-                    // Si no existía, la creamos nueva
-                    entity = new VulnerabilityEntity();
-                    entity.setCve(cve);
-                    entity.setAgentId(agentId);
-                    entity.setLastSync(currentSyncTime);
-                }
-                entity.setAgentName((String) a.get("name"));
-                
-                String assignedGroup = agentGroupsDict.get(agentId);
-                if (assignedGroup == null || assignedGroup.isBlank()) {
-                    assignedGroup = "default";
-                }
-                entity.setAgentGroup(assignedGroup);
+                MapSqlParameterSource params = new MapSqlParameterSource();
+                params.addValue("cve", cve);
+                params.addValue("agentId", agentId);
+                params.addValue("agentName", a.get("name"));
+                params.addValue("packageName", pkgName);
+                params.addValue("packageVersion", p.get("version"));
+                params.addValue("severity", v.get("severity"));
+                params.addValue("lastSync", currentSyncTime);
 
-                entity.setPackageName(pkgName);
-                entity.setPackageVersion((String) p.get("version"));
-                entity.setSeverity((String) v.get("severity"));
-                entity.setStatus("Active");
+                String assignedGroup = agentGroupsDict.get(agentId);
+                params.addValue("agentGroup",
+                    (assignedGroup == null || assignedGroup.isBlank()) ? "default" : assignedGroup);
 
                 Map<String, Object> scoreObj = (Map<String, Object>) v.get("score");
-                if (scoreObj != null && scoreObj.get("base") != null) {
-                    entity.setCvss3Score(Double.valueOf(scoreObj.get("base").toString()));
-                }
+                params.addValue("cvss3Score",
+                    (scoreObj != null && scoreObj.get("base") != null)
+                        ? Double.valueOf(scoreObj.get("base").toString()) : null);
+
+                params.addValue("title", v.get("title"));
+                params.addValue("description", v.get("description"));
 
                 Object detectedAt = v.get("detected_at");
-                if (detectedAt != null) {
-                    try {
-                        if (detectedAt instanceof Number num) {
-                            long ms = num.longValue();
-                            if (ms > 1_000_000_000_000L) entity.setDetectionTime(Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-                            else entity.setDetectionTime(Instant.ofEpochSecond(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
-                        } else {
-                            String s = detectedAt.toString();
-                            if (!s.isBlank()) entity.setDetectionTime(ZonedDateTime.parse(s).toLocalDateTime());
-                        }
-                    } catch (Exception ignored) {
-                        // Formato de fecha no reconocido; se deja detectionTime null
-                    }
-                }
+                params.addValue("detectionTime", parseDetectionTime(detectedAt));
 
-                Object desc = v.get("description");
-                if (desc != null) entity.setDescription(desc.toString());
-                Object titleObj = v.get("title");
-                if (titleObj != null) entity.setTitle(titleObj.toString());
-
-                entitiesToSave.add(entity);
+                batchArgs.add(params);
             } catch (Exception e) {
                 log.warn("Hit malformado omitido: {}", e.getMessage());
             }
         }
-        if (!entitiesToSave.isEmpty()) {
-            vulnerabilityRepository.saveAll(entitiesToSave);
+
+        if (!batchArgs.isEmpty()) {
+            namedJdbcTemplate.batchUpdate(UPSERT_SQL, batchArgs.toArray(new MapSqlParameterSource[0]));
         }
+    }
+
+    private LocalDateTime parseDetectionTime(Object detectedAt) {
+        if (detectedAt == null) return null;
+        try {
+            if (detectedAt instanceof Number num) {
+                long ms = num.longValue();
+                if (ms > 1_000_000_000_000L)
+                    return Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+                else
+                    return Instant.ofEpochSecond(ms).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            } else {
+                String s = detectedAt.toString();
+                if (!s.isBlank())
+                    return ZonedDateTime.parse(s).toLocalDateTime();
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     private String wazuhBaseUrl(WazuhCredentials creds) {

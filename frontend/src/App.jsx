@@ -84,7 +84,7 @@ const AppContent = () => {
                 />
                 <Route 
                     path="/consumer" 
-                    element={<ProtectedRoute adminOnly={true}><Consumer /></ProtectedRoute>} 
+                    element={<ProtectedRoute><Consumer /></ProtectedRoute>} 
                 />
                 <Route
                     path="/tables"

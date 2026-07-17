@@ -51,22 +51,20 @@ const Home = () => {
                         </button>
                     ))}
 
-                    {/* Botón de Wazuh: Solo renderizar si es ADMIN */}
-                    {userRole === 'ADMIN' && (
-                        <button 
-                            className="menu-card wazuh-button" 
-                            onClick={() => navigate('/consumer')} 
-                            style={{ gridColumn: '1 / -1' }} 
-                        >
-                            <div className="icon-wrapper">
-                                <Download size={40} />
-                            </div>
-                            <div className="card-info">
-                                <h3>Obtener datos desde Wazuh</h3>
-                                <p>Consume la API de uno o más Wazuh</p>
-                            </div>
-                        </button>
-                    )}
+                    {/* Botón de Wazuh: Visible para todos los usuarios autenticados */}
+                    <button 
+                        className="menu-card wazuh-button" 
+                        onClick={() => navigate('/consumer')} 
+                        style={{ gridColumn: '1 / -1' }} 
+                    >
+                        <div className="icon-wrapper">
+                            <Download size={40} />
+                        </div>
+                        <div className="card-info">
+                            <h3>Obtener datos desde Wazuh</h3>
+                            <p>Consume la API de uno o más Wazuh</p>
+                        </div>
+                    </button>
                 </div>
             </main>
         </div>

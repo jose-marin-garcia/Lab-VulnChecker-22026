@@ -26,35 +26,78 @@ public class TimescaleConfig implements ApplicationRunner {
             jdbcTemplate.execute("CREATE EXTENSION IF NOT EXISTS timescaledb");
             log.info("Extensión timescaledb creada/verificada.");
 
-            Integer yaEsHypertable = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM timescaledb_information.hypertables WHERE hypertable_name = 'vulnerability_snapshots'",
-                Integer.class
-            );
+            // --- vulnerability_snapshots hypertable ---
+            convertToHypertable("vulnerability_snapshots", "snapshot_date", true);
 
-            if (yaEsHypertable == null || yaEsHypertable == 0) {
-                log.info("Convirtiendo 'vulnerability_snapshots' a hypertable...");
+            // --- vulnerabilities hypertable (main table, 25M+ rows) ---
+            convertToHypertable("vulnerabilities", "detection_time", false);
 
-                jdbcTemplate.execute("""
-                    ALTER TABLE vulnerability_snapshots
-                    DROP CONSTRAINT IF EXISTS vulnerability_snapshots_pkey CASCADE
-                """);
+            // --- Enable compression on vulnerabilities (chunks older than 7 days) ---
+            enableCompression("vulnerabilities");
 
-                jdbcTemplate.execute("""
-                    SELECT create_hypertable('vulnerability_snapshots', 'snapshot_date')
-                """);
-
-                jdbcTemplate.execute("""
-                    ALTER TABLE vulnerability_snapshots
-                    ADD PRIMARY KEY (id, snapshot_date)
-                """);
-
-                log.info("Hypertable 'vulnerability_snapshots' creada con composite PK (id, snapshot_date).");
-            } else {
-                log.info("Hypertable 'vulnerability_snapshots' ya existe, se salta la conversión.");
-            }
+            log.info(">>> TimescaleDB initialization complete.");
 
         } catch (Exception e) {
             log.warn("No se pudo inicializar TimescaleDB (puede que la BD no sea TimescaleDB): {}", e.getMessage());
+        }
+    }
+
+    private void convertToHypertable(String tableName, String partitionColumn, boolean addPk) {
+        try {
+            Integer isHypertable = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM timescaledb_information.hypertables WHERE hypertable_name = ?",
+                Integer.class, tableName
+            );
+
+            if (isHypertable == null || isHypertable == 0) {
+                log.info("Convirtiendo '{}' a hypertable...", tableName);
+
+                if (addPk) {
+                    jdbcTemplate.execute("ALTER TABLE " + tableName +
+                        " DROP CONSTRAINT IF EXISTS " + tableName + "_pkey CASCADE");
+                }
+
+                jdbcTemplate.execute("SELECT create_hypertable('" + tableName + "', '" + partitionColumn + "')");
+
+                if (addPk) {
+                    jdbcTemplate.execute("ALTER TABLE " + tableName +
+                        " ADD PRIMARY KEY (id, " + partitionColumn + ")");
+                }
+
+                log.info("Hypertable '{}' creada con partition key '{}'.", tableName, partitionColumn);
+            } else {
+                log.info("Hypertable '{}' ya existe, se salta la conversión.", tableName);
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo crear hypertable '{}': {}", tableName, e.getMessage());
+        }
+    }
+
+    private void enableCompression(String tableName) {
+        try {
+            // Check if compression policy already exists
+            Integer hasPolicy = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM timescaledb_information.jobs WHERE proc_name = 'policy_compression' " +
+                "AND hypertable_name = ?",
+                Integer.class, tableName
+            );
+
+            if (hasPolicy == null || hasPolicy == 0) {
+                log.info("Habilitando compresión automática para '{}'...", tableName);
+
+                jdbcTemplate.execute("ALTER TABLE " + tableName +
+                    " SET (timescaledb.compress, timescaledb.compress_segmentby = 'agent_id')");
+
+                // Compress chunks older than 7 days
+                jdbcTemplate.execute(
+                    "SELECT add_compression_policy('" + tableName + "', INTERVAL '7 days')");
+
+                log.info("Política de compresión configurada: chunks >7 días se comprimen automáticamente.");
+            } else {
+                log.info("Compresión ya configurada para '{}'.", tableName);
+            }
+        } catch (Exception e) {
+            log.warn("No se pudo habilitar compresión para '{}': {}", tableName, e.getMessage());
         }
     }
 }
