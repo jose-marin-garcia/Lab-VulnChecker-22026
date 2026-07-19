@@ -14,6 +14,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
@@ -36,6 +38,9 @@ class WazuhServiceTest {
     @Mock
     private VulnerabilitySnapshotRepository snapshotRepository;
 
+    @Mock
+    private NamedParameterJdbcTemplate namedJdbcTemplate;
+
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
@@ -45,7 +50,7 @@ class WazuhServiceTest {
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository, directExecutor);
+        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository, namedJdbcTemplate, directExecutor);
     }
 
     @Test
@@ -62,6 +67,7 @@ class WazuhServiceTest {
         assertNotNull(result);
         verifyNoInteractions(vulnerabilityRepository);
         verifyNoInteractions(snapshotRepository);
+        verifyNoInteractions(namedJdbcTemplate);
         ArgumentCaptor<HttpEntity<String>> requestCaptor = ArgumentCaptor.forClass(HttpEntity.class);
         verify(restTemplate).exchange(
                 anyString(),
@@ -103,7 +109,14 @@ class WazuhServiceTest {
 
     @Test
     void syncAllVulnerabilitiesMasive_processesBatchAndStopsOnEmptyPage() throws Exception {
-        when(vulnerabilityRepository.existsByCveAndAgentIdAndPackageName("CVE-2026-2000", "001", "openssl")).thenReturn(false);
+        Map<String, Object> agentGroupsResponse = Map.of("hits", Map.of("hits", List.of()));
+
+        when(restTemplate.exchange(
+                anyString(),
+                eq(HttpMethod.POST),
+                any(HttpEntity.class),
+                eq(Map.class)
+        )).thenReturn(ResponseEntity.ok(agentGroupsResponse));
 
         Map<String, Object> firstPage = searchResponse(List.of(singleHit("CVE-2026-2000", "Critical", "001", "openssl", List.of(1700000002L, "def"))));
         Map<String, Object> emptyPage = searchResponse(List.of());
@@ -117,14 +130,10 @@ class WazuhServiceTest {
 
         service.syncAllVulnerabilitiesMasive(CREDS);
 
-        verify(vulnerabilityRepository).saveAll(argThat(items -> {
-            int size = 0;
-            for (Object item : items) {
-                size++;
-            }
-            return size == 1;
-        }));
+        verify(namedJdbcTemplate).batchUpdate(anyString(), any(SqlParameterSource[].class));
         verify(snapshotRepository).save(any());
+        verify(vulnerabilityRepository).markAsResolvedForAgentsBefore(anyList(), any(), any());
+        
         verify(restTemplate, times(2)).exchange(
                 anyString(),
                 eq(HttpMethod.POST),
