@@ -10,6 +10,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { buildApiUrl } from "../../config/api";
 import { apiClient } from "../../config/auth";
+import TimelinePanel from "../Timeline/TimelinePanel";
 import "../Tables/Tables.css";
 import "./Summary.css";
 
@@ -362,6 +363,15 @@ const Summary = ({
             Limpiar Todos
           </button>
         </section>
+
+        {/* Línea de tiempo — refleja los filtros activos del resumen */}
+        <TimelinePanel
+          search={appliedFilters.search}
+          cve={appliedFilters.cve || ""}
+          severity={appliedFilters.severity !== "all" ? appliedFilters.severity : ""}
+          agentId={appliedFilters.agent || ""}
+          highPriorityOnly={effectiveHighPriorityOnly}
+        />
 
         {error && (
           <div className="tables-error">

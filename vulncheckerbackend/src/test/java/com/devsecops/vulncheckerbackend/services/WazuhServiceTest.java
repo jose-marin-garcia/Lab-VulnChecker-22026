@@ -3,6 +3,7 @@ package com.devsecops.vulncheckerbackend.services;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityTimelineEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,12 @@ class WazuhServiceTest {
     @Mock
     private VulnerabilitySnapshotRepository snapshotRepository;
 
+    @Mock
+    private VulnerabilityTimelineEventRepository timelineEventRepository;
+
+    @Mock
+    private org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate namedJdbcTemplate;
+
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
@@ -45,7 +52,8 @@ class WazuhServiceTest {
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository, directExecutor);
+        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository,
+                timelineEventRepository, namedJdbcTemplate, directExecutor);
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.devsecops.vulncheckerbackend.entities.VulnerabilityEntity;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilitySnapshotEntity;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityTimelineEventRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -36,11 +38,11 @@ public class WazuhService {
         INSERT INTO vulnerabilities (
             cve, agent_id, agent_name, agent_group, package_name, package_version,
             severity, cvss3_score, title, description, detection_time,
-            status, last_sync, resolved_at
+            status, last_sync, resolved_at, first_seen_sync
         ) VALUES (
             :cve, :agentId, :agentName, :agentGroup, :packageName, :packageVersion,
             :severity, :cvss3Score, :title, :description, :detectionTime,
-            'Active', :lastSync, NULL
+            'Active', :lastSync, NULL, :firstSeenSync
         )
         ON CONFLICT (cve, agent_id, package_name) DO UPDATE SET
             agent_name = EXCLUDED.agent_name,
@@ -53,12 +55,14 @@ public class WazuhService {
             detection_time = EXCLUDED.detection_time,
             status = 'Active',
             last_sync = EXCLUDED.last_sync,
-            resolved_at = NULL
+            resolved_at = NULL,
+            first_seen_sync = COALESCE(vulnerabilities.first_seen_sync, EXCLUDED.first_seen_sync)
         """;
 
     private final RestTemplate restTemplate;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final VulnerabilitySnapshotRepository snapshotRepository;
+    private final VulnerabilityTimelineEventRepository timelineEventRepository;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
     private final Executor taskExecutor;
 
@@ -71,11 +75,13 @@ public class WazuhService {
     public WazuhService(@Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
                         VulnerabilityRepository vulnerabilityRepository,
                         VulnerabilitySnapshotRepository snapshotRepository,
+                        VulnerabilityTimelineEventRepository timelineEventRepository,
                         NamedParameterJdbcTemplate namedJdbcTemplate,
                         @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
+        this.timelineEventRepository = timelineEventRepository;
         this.namedJdbcTemplate = namedJdbcTemplate;
         this.taskExecutor = taskExecutor;
     }
@@ -327,6 +333,9 @@ public class WazuhService {
                         vulnerabilityRepository.markAsResolvedForAgentsBefore(activeAgents, currentSyncTime, LocalDateTime.now());
                         log.info("Fase Sweep completada: vulnerabilidades antiguas marcadas como Resolved.");
                     }
+
+                    // Fase Timeline: pre-calcular eventos NEW y RESOLVED para este sync
+                    saveTimelineEvents(currentSyncTime);
                     
                     log.info("FINALIZADO: {} registros guardados de {}", totalProcesados, creds.wazuhHost());
                     currentSyncStatus = "COMPLETED";
@@ -341,6 +350,7 @@ public class WazuhService {
 
     private void processAndSaveBatch(List<Map<String, Object>> hits, Map<String, SnapshotCounter> countersByAgent, Map<String, String> agentGroupsDict, LocalDateTime currentSyncTime) {
         List<MapSqlParameterSource> batchArgs = new ArrayList<>();
+        LocalDate syncDate = currentSyncTime.toLocalDate();
 
         for (Map<String, Object> hit : hits) {
             try {
@@ -363,6 +373,7 @@ public class WazuhService {
                 params.addValue("packageVersion", p.get("version"));
                 params.addValue("severity", v.get("severity"));
                 params.addValue("lastSync", currentSyncTime);
+                params.addValue("firstSeenSync", syncDate);
 
                 String assignedGroup = agentGroupsDict.get(agentId);
                 params.addValue("agentGroup",
@@ -388,6 +399,41 @@ public class WazuhService {
         if (!batchArgs.isEmpty()) {
             namedJdbcTemplate.batchUpdate(UPSERT_SQL, batchArgs.toArray(new MapSqlParameterSource[0]));
         }
+    }
+
+    /**
+     * Pre-calcula los eventos NEW y RESOLVED para la fecha de este sync y los guarda
+     * en vulnerability_timeline_events. Se ejecuta una sola vez al final de cada sync,
+     * por lo que el costo es pagado en ese momento y no en cada query del timeline.
+     */
+    private void saveTimelineEvents(LocalDateTime syncTime) {
+        LocalDate syncDate = syncTime.toLocalDate();
+        log.info(">>> Timeline: calculando eventos NEW/RESOLVED para fecha {}", syncDate);
+
+        // Insertar eventos NEW (primera vez que aparece la vulnerabilidad)
+        String insertNew = """
+            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
+            SELECT :syncDate, id, cve, severity, agent_id, 'NEW'
+            FROM vulnerabilities
+            WHERE first_seen_sync = :syncDate
+            """;
+
+        // Insertar eventos RESOLVED (marcadas como Resolved en esta pasada del sweep)
+        String insertResolved = """
+            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
+            SELECT :syncDate, id, cve, severity, agent_id, 'RESOLVED'
+            FROM vulnerabilities
+            WHERE resolved_at IS NOT NULL
+              AND DATE(resolved_at) = :syncDate
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource("syncDate", syncDate);
+
+        int newInserted = namedJdbcTemplate.update(insertNew, params);
+        int resolvedInserted = namedJdbcTemplate.update(insertResolved, params);
+
+        log.info(">>> Timeline: {} eventos NEW y {} eventos RESOLVED guardados para {}",
+                newInserted, resolvedInserted, syncDate);
     }
 
     private LocalDateTime parseDetectionTime(Object detectedAt) {

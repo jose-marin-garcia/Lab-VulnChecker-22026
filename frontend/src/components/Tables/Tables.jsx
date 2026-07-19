@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { AlertCircle, RefreshCcw, Search, Filter } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
+import TimelinePanel from '../Timeline/TimelinePanel';
 import './Tables.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -372,6 +373,15 @@ const Tables = ({
             Limpiar Todos
           </button>
         </section>
+
+        {/* Línea de tiempo — refleja los filtros activos de la tabla */}
+        <TimelinePanel
+          search={appliedFilters.search}
+          cve={appliedFilters.cve || ''}
+          severity={appliedFilters.severity !== 'all' ? appliedFilters.severity : ''}
+          agentId={appliedFilters.agent || ''}
+          highPriorityOnly={effectiveHighPriorityOnly}
+        />
 
         {error && (
           <div className="tables-error">
