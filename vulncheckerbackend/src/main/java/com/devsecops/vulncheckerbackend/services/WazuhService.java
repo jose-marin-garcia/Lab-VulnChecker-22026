@@ -330,6 +330,12 @@ public class WazuhService {
                     
                     log.info("FINALIZADO: {} registros guardados de {}", totalProcesados, creds.wazuhHost());
                     currentSyncStatus = "COMPLETED";
+
+                    // Actualizar las vistas materializadas de los filtros
+                    vulnerabilityRepository.refreshGroupsView();
+                    vulnerabilityRepository.refreshPackagesView();
+                    vulnerabilityRepository.refreshSeveritiesView();
+                    vulnerabilityRepository.refreshStatusView();
                 }
             } catch (Exception e) {
                 log.error("ERROR CRÍTICO EN HILO DE SINCRONIZACIÓN: ", e);

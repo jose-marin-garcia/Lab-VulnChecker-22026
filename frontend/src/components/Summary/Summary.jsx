@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   RefreshCcw,
-  Search,
   Filter,
   Download,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { buildApiUrl } from "../../config/api";
 import { apiClient } from "../../config/auth";
 import "../Tables/Tables.css";
 import "./Summary.css";
@@ -37,14 +36,17 @@ const Summary = ({
   lockHighPriority = false,
   hideSeverityFilter = false,
 }) => {
+  const [searchParams] = useSearchParams();
   const defaultFilters = {
-    search: "",
-    severity: "all",
-    agent: "",
-    cve: "",
-    description: "",
-    startDate: "",
-    endDate: "",
+    severity: searchParams.get("severity") || "all",
+    agentName: searchParams.get("agentName") || "",
+    agentGroup: searchParams.get("agentGroup") || "",
+    status: searchParams.get("status") || "all",
+    cve: searchParams.get("cve") || "",
+    package: searchParams.get("packageName") || "",
+    cvss: { min: Number(searchParams.get("minCvss")) || 0, max: Number(searchParams.get("maxCvss")) || 10 },
+    startDate: searchParams.get("startDate") || "",
+    endDate: searchParams.get("endDate") || "",
   };
 
   const [rows, setRows] = useState([]);
@@ -126,11 +128,6 @@ const Summary = ({
     setCurrentPage(1);
   };
 
-  const applyGlobalSearch = () => {
-    setAppliedFilters((prev) => ({ ...prev, search: localFilters.search }));
-    setCurrentPage(1);
-  };
-
   const fetchVulnerabilities = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -138,21 +135,19 @@ const Summary = ({
       const params = new URLSearchParams();
       params.set("page", String(currentPage - 1));
       params.set("size", String(PAGE_SIZE));
-      params.set("sortKey", sortConfig.key);
-      params.set("sortDir", sortConfig.direction);
-
       if (appliedFilters.severity !== "all")
         params.set("severity", appliedFilters.severity);
-      if (appliedFilters.agent) params.set("agentId", appliedFilters.agent);
+      if (appliedFilters.agentName) params.set("agentName", appliedFilters.agentName);
+      if (appliedFilters.agentGroup) params.set("agentGroup", appliedFilters.agentGroup);
+      if (appliedFilters.status !== "all") params.set("status", appliedFilters.status);
       if (appliedFilters.cve) params.set("cve", appliedFilters.cve);
-      if (appliedFilters.description)
-        params.set("description", appliedFilters.description);
+      if (appliedFilters.package) params.set("packageName", appliedFilters.package);
+      if (appliedFilters.cvss.min > 0) params.set("minCvss", String(appliedFilters.cvss.min));
+      if (appliedFilters.cvss.max < 10) params.set("maxCvss", String(appliedFilters.cvss.max));
       if (appliedFilters.startDate)
         params.set("startDate", appliedFilters.startDate);
       if (appliedFilters.endDate) params.set("endDate", appliedFilters.endDate);
-      if (appliedFilters.search.trim())
-        params.set("search", appliedFilters.search.trim());
-      if (effectiveHighPriorityOnly) params.set("highPriorityOnly", "true");
+      if (effectiveHighPriorityOnly) params.set("severity", "Critical");
 
       const response = await apiClient.get(`${API_URL}?${params.toString()}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -163,12 +158,12 @@ const Summary = ({
       setRows(content);
       setTotalPages(data.totalPages || 1);
       setTotalRecords(data.totalElements || content.length);
-    } catch (err) {
+    } catch {
       setError("No se pudo cargar la tabla desde el backend.");
     } finally {
       setLoading(false);
     }
-  }, [currentPage, appliedFilters, effectiveHighPriorityOnly, sortConfig]);
+  }, [currentPage, appliedFilters, effectiveHighPriorityOnly]);
 
   useEffect(() => {
     fetchVulnerabilities();
@@ -325,43 +320,9 @@ const Summary = ({
           </div>
         </header>
 
-        <section
-          className="tables-filters"
-          style={{ gridTemplateColumns: "minmax(280px, 1fr) auto auto" }}
-        >
-          <label className="search-input-wrapper">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Búsqueda global..."
-              value={localFilters.search}
-              onChange={(e) =>
-                setLocalFilters({ ...localFilters, search: e.target.value })
-              }
-              onKeyDown={(e) => e.key === "Enter" && applyGlobalSearch()}
-            />
-          </label>
-          <button
-            className="refresh-button"
-            onClick={applyGlobalSearch}
-            style={{ width: "fit-content", padding: "0 1rem" }}
-          >
-            Buscar
-          </button>
-          <button
-            className="refresh-button"
-            onClick={clearAllFilters}
-            style={{
-              width: "fit-content",
-              padding: "0 1rem",
-              backgroundColor: "transparent",
-              border: "1px solid #ff6b6b",
-              color: "#ff6b6b",
-            }}
-          >
-            Limpiar Todos
-          </button>
-        </section>
+        <div className="tables-header-actions">
+          <button className="refresh-button" onClick={clearAllFilters}>Limpiar filtros de esta vista</button>
+        </div>
 
         {error && (
           <div className="tables-error">
@@ -394,17 +355,17 @@ const Summary = ({
 
                   {renderFilterPopover(
                     "agentId",
-                    "agent",
-                    "Agente",
+                    "agentName",
+                    "Nombre de agente",
                     <input
                       type="text"
                       className="inline-filter-input"
-                      placeholder="Filtrar por Agente"
-                      value={localFilters.agent}
+                      placeholder="Nombre exacto del agente"
+                      value={localFilters.agentName}
                       onChange={(e) =>
                         setLocalFilters({
                           ...localFilters,
-                          agent: e.target.value,
+                          agentName: e.target.value,
                         })
                       }
                     />,
@@ -483,23 +444,7 @@ const Summary = ({
                       </label>
                     </>,
                   )}
-                  {renderFilterPopover(
-                    "description",
-                    "description",
-                    "Descripción",
-                    <input
-                      type="text"
-                      className="inline-filter-input"
-                      placeholder="Palabra clave..."
-                      value={localFilters.description}
-                      onChange={(e) =>
-                        setLocalFilters({
-                          ...localFilters,
-                          description: e.target.value,
-                        })
-                      }
-                    />,
-                  )}
+                  <th>Descripción</th>
                 </tr>
               </thead>
               <tbody>
