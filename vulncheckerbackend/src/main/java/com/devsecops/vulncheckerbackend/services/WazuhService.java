@@ -3,6 +3,7 @@ package com.devsecops.vulncheckerbackend.services;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilityEntity;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilitySnapshotEntity;
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityBatchRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
 import org.slf4j.Logger;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -30,36 +30,10 @@ public class WazuhService {
     // 1. Uso de Logger en lugar de System.out (Code Smell: Major)
     private static final Logger log = LoggerFactory.getLogger(WazuhService.class);
 
-    // Batch upsert: INSERT ... ON CONFLICT ... DO UPDATE
-    // This replaces the individual SELECT + INSERT/UPDATE pattern (25M queries → 5K queries)
-    private static final String UPSERT_SQL = """
-        INSERT INTO vulnerabilities (
-            cve, agent_id, agent_name, agent_group, package_name, package_version,
-            severity, cvss3_score, title, description, detection_time,
-            status, last_sync, resolved_at
-        ) VALUES (
-            :cve, :agentId, :agentName, :agentGroup, :packageName, :packageVersion,
-            :severity, :cvss3Score, :title, :description, :detectionTime,
-            'Active', :lastSync, NULL
-        )
-        ON CONFLICT (cve, agent_id, package_name) DO UPDATE SET
-            agent_name = EXCLUDED.agent_name,
-            agent_group = EXCLUDED.agent_group,
-            package_version = EXCLUDED.package_version,
-            severity = EXCLUDED.severity,
-            cvss3_score = EXCLUDED.cvss3_score,
-            title = EXCLUDED.title,
-            description = EXCLUDED.description,
-            detection_time = EXCLUDED.detection_time,
-            status = 'Active',
-            last_sync = EXCLUDED.last_sync,
-            resolved_at = NULL
-        """;
-
     private final RestTemplate restTemplate;
     private final VulnerabilityRepository vulnerabilityRepository;
     private final VulnerabilitySnapshotRepository snapshotRepository;
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
+    private final VulnerabilityBatchRepository vulnerabilityBatchRepository;
     private final Executor taskExecutor;
 
     @Value("${wazuh.index.vulnerabilities}")
@@ -71,12 +45,12 @@ public class WazuhService {
     public WazuhService(@Qualifier("wazuhRestTemplate") RestTemplate restTemplate,
                         VulnerabilityRepository vulnerabilityRepository,
                         VulnerabilitySnapshotRepository snapshotRepository,
-                        NamedParameterJdbcTemplate namedJdbcTemplate,
+                        VulnerabilityBatchRepository vulnerabilityBatchRepository,
                         @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
-        this.namedJdbcTemplate = namedJdbcTemplate;
+        this.vulnerabilityBatchRepository = vulnerabilityBatchRepository;
         this.taskExecutor = taskExecutor;
     }
 
@@ -386,7 +360,7 @@ public class WazuhService {
         }
 
         if (!batchArgs.isEmpty()) {
-            namedJdbcTemplate.batchUpdate(UPSERT_SQL, batchArgs.toArray(new MapSqlParameterSource[0]));
+            vulnerabilityBatchRepository.batchUpsert(batchArgs);
         }
     }
 
