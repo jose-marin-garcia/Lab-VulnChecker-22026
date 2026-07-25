@@ -21,6 +21,7 @@ const Navbar = () => {
         '/charts': 'Análisis Métrico',
         '/evolution': 'Histórico',
         '/critical': 'Alertas Críticas',
+        '/filters': 'Filtros de vulnerabilidades',
         '/logs': 'Bitácora de Eventos'
     };
 

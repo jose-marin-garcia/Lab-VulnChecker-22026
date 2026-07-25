@@ -164,7 +164,8 @@ CREATE INDEX IF NOT EXISTS vulnerability_snapshots_snapshot_date_idx
 -- =============================================
 CREATE OR REPLACE FUNCTION sp_get_vulnerabilities(
     p_severity VARCHAR DEFAULT NULL,
-    p_agent_id VARCHAR DEFAULT NULL,
+    p_agent_name VARCHAR DEFAULT NULL,
+    p_agent_group VARCHAR DEFAULT NULL,
     p_status VARCHAR DEFAULT NULL,
     p_start_date TIMESTAMP DEFAULT NULL,
     p_end_date TIMESTAMP DEFAULT NULL,
@@ -182,7 +183,8 @@ BEGIN
     FROM vulnerabilities v
     WHERE 
         (p_severity IS NULL OR v.severity = p_severity)
-        AND (p_agent_id IS NULL OR v.agent_id = p_agent_id)
+        AND (p_agent_name IS NULL OR v.agent_name = p_agent_name)
+        AND (p_agent_group IS NULL OR v.agent_group = p_agent_group)
         AND (p_status IS NULL OR v.status = p_status)
         AND (p_start_date IS NULL OR v.detection_time >= p_start_date)
         AND (p_end_date IS NULL OR v.detection_time <= p_end_date)
@@ -195,6 +197,34 @@ BEGIN
     OFFSET COALESCE(p_offset, 0);
 END;
 $$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION sp_count_vulnerabilities(
+    p_severity VARCHAR DEFAULT NULL,
+    p_agent_name VARCHAR DEFAULT NULL,
+    p_agent_group VARCHAR DEFAULT NULL,
+    p_status VARCHAR DEFAULT NULL,
+    p_start_date TIMESTAMP DEFAULT NULL,
+    p_end_date TIMESTAMP DEFAULT NULL,
+    p_min_cvss DOUBLE PRECISION DEFAULT NULL,
+    p_max_cvss DOUBLE PRECISION DEFAULT NULL,
+    p_cve VARCHAR DEFAULT NULL,
+    p_package_name VARCHAR DEFAULT NULL
+)
+RETURNS BIGINT AS $$
+    SELECT COUNT(*)
+    FROM vulnerabilities v
+    WHERE
+        (p_severity IS NULL OR v.severity = p_severity)
+        AND (p_agent_name IS NULL OR v.agent_name = p_agent_name)
+        AND (p_agent_group IS NULL OR v.agent_group = p_agent_group)
+        AND (p_status IS NULL OR v.status = p_status)
+        AND (p_start_date IS NULL OR v.detection_time >= p_start_date)
+        AND (p_end_date IS NULL OR v.detection_time <= p_end_date)
+        AND (p_min_cvss IS NULL OR v.cvss3_score >= p_min_cvss)
+        AND (p_max_cvss IS NULL OR v.cvss3_score <= p_max_cvss)
+        AND (p_cve IS NULL OR v.cve = p_cve)
+        AND (p_package_name IS NULL OR v.package_name = p_package_name);
+$$ LANGUAGE sql STABLE;
 
 -- VISTAS MATERIALIZADAS
 CREATE MATERIALIZED VIEW public.mv_vulnerabilities_severities AS

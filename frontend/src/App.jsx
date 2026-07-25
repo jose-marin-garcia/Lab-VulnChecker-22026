@@ -11,6 +11,7 @@ import Tables from './components/Tables/Tables';
 import Summary from './components/Summary/Summary';
 import Charts from './components/Charts/Charts';
 import Evolution from './components/Evolution/Evolution';
+import VulnerabilityFilters from './components/VulnerabilityFilters/VulnerabilityFilters';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -62,6 +63,14 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return children;
 };
 
+const FilterRequired = ({ children, view }) => {
+    const location = useLocation();
+    if (new URLSearchParams(location.search).get('configured') !== 'true') {
+        return <Navigate to={`/filters?view=${view}`} replace />;
+    }
+    return children;
+};
+
 const AppContent = () => {
     const location = useLocation(); // <--- Ahora sí funcionará porque lo importamos arriba
     const isPublicPage = location.pathname === '/' || location.pathname === '/register';
@@ -86,27 +95,30 @@ const AppContent = () => {
                     path="/consumer" 
                     element={<ProtectedRoute><Consumer /></ProtectedRoute>} 
                 />
+                <Route path="/filters" element={<ProtectedRoute><VulnerabilityFilters /></ProtectedRoute>} />
                 <Route
                     path="/tables"
-                    element={<ProtectedRoute><Tables /></ProtectedRoute>}
+                    element={<ProtectedRoute><FilterRequired view="tables"><Tables /></FilterRequired></ProtectedRoute>}
                 />
                 <Route
                     path="/critical"
                     element={
                         <ProtectedRoute>
-                            <Tables
-                                title="Vulnerabilidades Críticas"
-                                subtitle="Vista priorizada de hallazgos críticos y altos."
-                                defaultHighPriorityOnly={true}
-                                lockHighPriority={true}
-                                hideSeverityFilter={true}
-                            />
+                            <FilterRequired view="critical">
+                                <Tables
+                                    title="Vulnerabilidades Críticas"
+                                    subtitle="Vista priorizada de hallazgos críticos."
+                                    defaultHighPriorityOnly={true}
+                                    lockHighPriority={true}
+                                    hideSeverityFilter={true}
+                                />
+                            </FilterRequired>
                         </ProtectedRoute>
                     }
                 />
                 <Route
                     path="/summary"
-                    element={<ProtectedRoute><Summary /></ProtectedRoute>}
+                    element={<ProtectedRoute><FilterRequired view="summary"><Summary /></FilterRequired></ProtectedRoute>}
                 />
                 <Route
                     path="/charts"

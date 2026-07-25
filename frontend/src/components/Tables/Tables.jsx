@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { AlertCircle, RefreshCcw, Search, Filter } from 'lucide-react';
-import { buildApiUrl } from '../../config/api';
+import { useSearchParams } from 'react-router-dom';
+import { AlertCircle, RefreshCcw, Filter } from 'lucide-react';
 import { apiClient } from '../../config/auth';
 import './Tables.css';
 
@@ -28,18 +28,17 @@ const Tables = ({
   lockHighPriority = false,
   hideSeverityFilter = false,
 }) => {
+  const [searchParams] = useSearchParams();
   const defaultFilters = {
-    search: "",
-    severity: "all",
-    status: "all",
-    startDate: "",
-    endDate: "",
-    id: "",
-    cvss: { min: 0, max: 10 },
-    agent: "",
-    cve: "",
-    package: "",
-    description: "",
+    severity: searchParams.get("severity") || "all",
+    status: searchParams.get("status") || "all",
+    startDate: searchParams.get("startDate") || "",
+    endDate: searchParams.get("endDate") || "",
+    cvss: { min: Number(searchParams.get("minCvss")) || 0, max: Number(searchParams.get("maxCvss")) || 10 },
+    agentName: searchParams.get("agentName") || "",
+    agentGroup: searchParams.get("agentGroup") || "",
+    cve: searchParams.get("cve") || "",
+    package: searchParams.get("packageName") || "",
   };
 
   const [rows, setRows] = useState([]);
@@ -62,7 +61,6 @@ const Tables = ({
   });
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [pageInput, setPageInput] = useState("");
   const [severityOptions, setSeverityOptions] = useState([]);
   const effectiveHighPriorityOnly = lockHighPriority || highPriorityOnly;
 
@@ -125,11 +123,6 @@ const Tables = ({
     setCurrentPage(1);
   };
 
-  const applyGlobalSearch = () => {
-    setAppliedFilters({ ...appliedFilters, search: localFilters.search });
-    setCurrentPage(1);
-  };
-
   const fetchVulnerabilities = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -151,17 +144,17 @@ const Tables = ({
       if (appliedFilters.endDate) {
         params.set("endDate", appliedFilters.endDate);
       }
-      if (appliedFilters.id) {
-        params.set("filterId", appliedFilters.id);
-      }
       if (appliedFilters.cvss.min > 0) {
         params.set("minCvss", String(appliedFilters.cvss.min));
       }
       if (appliedFilters.cvss.max < 10) {
         params.set("maxCvss", String(appliedFilters.cvss.max));
       }
-      if (appliedFilters.agent && appliedFilters.agent !== "all") {
-        params.set("agentId", appliedFilters.agent);
+      if (appliedFilters.agentName) {
+        params.set("agentName", appliedFilters.agentName);
+      }
+      if (appliedFilters.agentGroup) {
+        params.set("agentGroup", appliedFilters.agentGroup);
       }
       if (appliedFilters.cve) {
         params.set("cve", appliedFilters.cve);
@@ -169,18 +162,9 @@ const Tables = ({
       if (appliedFilters.package) {
         params.set("packageName", appliedFilters.package);
       }
-      if (appliedFilters.description) {
-        params.set("description", appliedFilters.description);
-      }
-      if (appliedFilters.search.trim()) {
-        params.set("search", appliedFilters.search.trim());
-      }
       if (effectiveHighPriorityOnly) {
-        params.set("highPriorityOnly", "true");
+        params.set("severity", "Critical");
       }
-
-      params.set("sortKey", sortConfig.key);
-      params.set("sortDir", sortConfig.direction);
 
       const response = await apiClient.get(`${API_URL}?${params.toString()}`);
       if (!response.ok) {
@@ -213,8 +197,6 @@ const Tables = ({
     appliedFilters,
     currentPage,
     effectiveHighPriorityOnly,
-    sortConfig.direction,
-    sortConfig.key,
   ]);
 
   useEffect(() => {
@@ -335,43 +317,9 @@ const Tables = ({
           </div>
         </header>
 
-        <section
-          className="tables-filters"
-          style={{ gridTemplateColumns: "minmax(280px, 1fr) auto auto" }}
-        >
-          <label className="search-input-wrapper">
-            <Search size={16} />
-            <input
-              type="text"
-              placeholder="Búsqueda global..."
-              value={localFilters.search}
-              onChange={(event) =>
-                setLocalFilters({ ...localFilters, search: event.target.value })
-              }
-              onKeyDown={(e) => e.key === "Enter" && applyGlobalSearch()}
-            />
-          </label>
-          <button
-            className="refresh-button"
-            onClick={applyGlobalSearch}
-            style={{ width: "fit-content", padding: "0 1rem" }}
-          >
-            Buscar
-          </button>
-          <button
-            className="refresh-button"
-            onClick={clearAllFilters}
-            style={{
-              width: "fit-content",
-              padding: "0 1rem",
-              backgroundColor: "transparent",
-              border: "1px solid #ff6b6b",
-              color: "#ff6b6b",
-            }}
-          >
-            Limpiar Todos
-          </button>
-        </section>
+        <div className="tables-header-actions">
+          <button className="refresh-button" onClick={clearAllFilters}>Limpiar filtros de esta vista</button>
+        </div>
 
         {error && (
           <div className="tables-error">
@@ -385,35 +333,21 @@ const Tables = ({
             <table className="assets-table">
               <thead>
                 <tr>
-                  {renderFilterPopover(
-                    "id",
-                    "id",
-                    "ID",
-                    <input
-                      type="number"
-                      min="0"
-                      className="inline-filter-input"
-                      placeholder="Filtrar por ID"
-                      value={localFilters.id}
-                      onChange={(e) =>
-                        setLocalFilters({ ...localFilters, id: e.target.value })
-                      }
-                    />,
-                  )}
+                  <th>ID</th>
 
                   {renderFilterPopover(
                     "agentId",
-                    "agent",
-                    "Agente",
+                    "agentName",
+                    "Nombre de agente",
                     <input
                       type="text"
                       className="inline-filter-input"
-                      placeholder="Filtrar por Agente"
-                      value={localFilters.agent}
+                      placeholder="Nombre exacto del agente"
+                      value={localFilters.agentName}
                       onChange={(e) =>
                         setLocalFilters({
                           ...localFilters,
-                          agent: e.target.value,
+                          agentName: e.target.value,
                         })
                       }
                     />,
@@ -618,23 +552,7 @@ const Tables = ({
                     </div>,
                   )}
 
-                  {renderFilterPopover(
-                    "description",
-                    "description",
-                    "Descripción",
-                    <input
-                      type="text"
-                      className="inline-filter-input"
-                      placeholder="Palabra clave..."
-                      value={localFilters.description}
-                      onChange={(e) =>
-                        setLocalFilters({
-                          ...localFilters,
-                          description: e.target.value,
-                        })
-                      }
-                    />,
-                  )}
+                  <th>Descripción</th>
                 </tr>
               </thead>
               <tbody>
