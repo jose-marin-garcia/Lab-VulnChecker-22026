@@ -381,6 +381,12 @@ const Tables = ({
           severity={appliedFilters.severity !== 'all' ? appliedFilters.severity : ''}
           agentId={appliedFilters.agent || ''}
           highPriorityOnly={effectiveHighPriorityOnly}
+          minCvss={appliedFilters.cvss.min}
+          maxCvss={appliedFilters.cvss.max}
+          packageName={appliedFilters.package || ''}
+          status={appliedFilters.status || ''}
+          startDate={appliedFilters.startDate || ''}
+          endDate={appliedFilters.endDate || ''}
         />
 
         {error && (

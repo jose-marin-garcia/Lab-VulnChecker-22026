@@ -371,6 +371,8 @@ const Summary = ({
           severity={appliedFilters.severity !== "all" ? appliedFilters.severity : ""}
           agentId={appliedFilters.agent || ""}
           highPriorityOnly={effectiveHighPriorityOnly}
+          startDate={appliedFilters.startDate || ""}
+          endDate={appliedFilters.endDate || ""}
         />
 
         {error && (
