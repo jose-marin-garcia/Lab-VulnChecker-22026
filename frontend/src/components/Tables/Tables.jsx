@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AlertCircle, RefreshCcw, Filter } from 'lucide-react';
 import { apiClient } from '../../config/auth';
+import TimelinePanel from '../Timeline/TimelinePanel';
 import './Tables.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -320,6 +321,21 @@ const Tables = ({
         <div className="tables-header-actions">
           <button className="refresh-button" onClick={clearAllFilters}>Limpiar filtros de esta vista</button>
         </div>
+
+        {/* Línea de tiempo — refleja los filtros activos de la tabla */}
+        <TimelinePanel
+          search={appliedFilters.search}
+          cve={appliedFilters.cve || ''}
+          severity={appliedFilters.severity !== 'all' ? appliedFilters.severity : ''}
+          agentId={appliedFilters.agent || ''}
+          highPriorityOnly={effectiveHighPriorityOnly}
+          minCvss={appliedFilters.cvss.min}
+          maxCvss={appliedFilters.cvss.max}
+          packageName={appliedFilters.package || ''}
+          status={appliedFilters.status || ''}
+          startDate={appliedFilters.startDate || ''}
+          endDate={appliedFilters.endDate || ''}
+        />
 
         {error && (
           <div className="tables-error">

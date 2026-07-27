@@ -1,8 +1,10 @@
 package com.devsecops.vulncheckerbackend.services;
 
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityBatchRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityTimelineEventRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +41,9 @@ class WazuhServiceTest {
     private VulnerabilitySnapshotRepository snapshotRepository;
 
     @Mock
+    private VulnerabilityBatchRepository vulnerabilityBatchRepository;
+
+    @Mock
     private NamedParameterJdbcTemplate namedJdbcTemplate;
 
     private WazuhService service;
@@ -50,7 +55,14 @@ class WazuhServiceTest {
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        service = new WazuhService(restTemplate, vulnerabilityRepository, snapshotRepository, namedJdbcTemplate, directExecutor);
+        service = new WazuhService(
+                restTemplate,
+                vulnerabilityRepository,
+                snapshotRepository,
+                vulnerabilityBatchRepository,
+                namedJdbcTemplate,
+                directExecutor
+        );
     }
 
     @Test
@@ -130,7 +142,8 @@ class WazuhServiceTest {
 
         service.syncAllVulnerabilitiesMasive(CREDS);
 
-        verify(namedJdbcTemplate).batchUpdate(anyString(), any(SqlParameterSource[].class));
+        verify(vulnerabilityBatchRepository).batchUpsert(anyList());
+        verify(namedJdbcTemplate, times(2)).update(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource.class));
         verify(snapshotRepository).save(any());
         verify(vulnerabilityRepository).markAsResolvedForAgentsBefore(anyList(), any(), any());
         
