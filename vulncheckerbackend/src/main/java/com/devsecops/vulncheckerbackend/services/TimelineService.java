@@ -47,7 +47,7 @@ public class TimelineService {
             int months,
             String cve,
             String severity,
-            String agentId,
+            String agentName,
             boolean highPriorityOnly,
             String search,
             Double minCvss,
@@ -72,7 +72,7 @@ public class TimelineService {
         // ── Normalización de filtros ─────────────────────────────────────────
         String normCve      = normalize(cve);
         String normSeverity = normalize(severity);
-        String normAgentId  = normalize(agentId);
+        String normAgentName  = normalize(agentName);
         String normSearch   = normalize(search);
         String normPackage  = normalize(packageName);
         String normStatus   = normalize(status);
@@ -86,23 +86,23 @@ public class TimelineService {
               t.sync_date IN (:dates)
           AND (:cve       IS NULL OR LOWER(t.cve)      LIKE LOWER(CONCAT('%', :cve,      '%')))
           AND (:severity  IS NULL OR LOWER(t.severity)  = LOWER(:severity))
-          AND (:agentId   IS NULL OR t.agent_id         = :agentId)
+          AND (:agentName IS NULL OR t.agent_name       = :agentName)
           AND (:highPrio  = FALSE
                OR LOWER(t.severity) IN ('critical','high','crítica','critica','alta'))
           AND (:search    IS NULL OR LOWER(t.cve)       LIKE LOWER(CONCAT('%', :search,   '%')))
-          AND (:minCvss   IS NULL OR v.cvss3_score      >= CAST(:minCvss AS double precision))
-          AND (:maxCvss   IS NULL OR v.cvss3_score      <= CAST(:maxCvss AS double precision))
-          AND (:pkg       IS NULL OR LOWER(v.package_name) LIKE LOWER(CONCAT('%', :pkg, '%')))
-          AND (:status    IS NULL OR LOWER(v.status)    = LOWER(:status))
-          AND (CAST(:startDt AS date) IS NULL OR v.detection_time >= CAST(:startDt AS date))
-          AND (CAST(:endDt   AS date) IS NULL OR v.detection_time <= (CAST(:endDt AS date) + INTERVAL '1 day'))
+          AND (:minCvss   IS NULL OR t.cvss3_score      >= CAST(:minCvss AS double precision))
+          AND (:maxCvss   IS NULL OR t.cvss3_score      <= CAST(:maxCvss AS double precision))
+          AND (:pkg       IS NULL OR LOWER(t.package_name) LIKE LOWER(CONCAT('%', :pkg, '%')))
+          AND (:status    IS NULL OR LOWER(t.status)    = LOWER(:status))
+          AND (CAST(:startDt AS date) IS NULL OR t.detection_time >= CAST(:startDt AS date))
+          AND (CAST(:endDt   AS date) IS NULL OR t.detection_time <= (CAST(:endDt AS date) + INTERVAL '1 day'))
         """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("dates",    chronological)
                 .addValue("cve",      normCve,      java.sql.Types.VARCHAR)
                 .addValue("severity", normSeverity,  java.sql.Types.VARCHAR)
-                .addValue("agentId",  normAgentId,   java.sql.Types.VARCHAR)
+                .addValue("agentName", normAgentName, java.sql.Types.VARCHAR)
                 .addValue("highPrio", highPriorityOnly)
                 .addValue("search",   normSearch,    java.sql.Types.VARCHAR)
                 .addValue("minCvss",  normMinCvss,   java.sql.Types.DOUBLE)
@@ -114,9 +114,8 @@ public class TimelineService {
 
         // ── Query 2: conteos agrupados por (sync_date, event_type) ───────────
         String countSql = """
-            SELECT t.sync_date, t.event_type, COUNT(*) AS cnt
+            SELECT t.sync_date, t.event_type, COUNT(DISTINCT CONCAT(t.cve, t.agent_name)) AS cnt
             FROM vulnerability_timeline_events t
-            JOIN vulnerabilities v ON t.vulnerability_id = v.id
             WHERE """ + sharedWhere + """
             GROUP BY t.sync_date, t.event_type
         """;
@@ -131,22 +130,23 @@ public class TimelineService {
         // ── Query 3: detalles para el popover (máx 50 por grupo) ─────────────
         // Usa ROW_NUMBER() para limitar a 50 registros por (sync_date, event_type)
         String detailSql = """
-            SELECT sync_date, event_type, cve, severity, agent_id
+            SELECT sync_date, event_type, cve, severity, agent_name
             FROM (
-                SELECT t.sync_date, t.event_type, t.cve, t.severity, t.agent_id,
+                SELECT sync_date, event_type, cve, severity, agent_name,
                        ROW_NUMBER() OVER (
-                           PARTITION BY t.sync_date, t.event_type
-                           ORDER BY t.severity, t.cve
+                           PARTITION BY sync_date, event_type
+                           ORDER BY severity, cve
                        ) AS rn
-                FROM vulnerability_timeline_events t
-                JOIN vulnerabilities v ON t.vulnerability_id = v.id
-                WHERE """ + sharedWhere + """
+                FROM (
+                    SELECT DISTINCT t.sync_date, t.event_type, t.cve, t.severity, t.agent_name
+                    FROM vulnerability_timeline_events t
+                    WHERE """ + sharedWhere + """
+                ) dist
             ) ranked
             WHERE rn <= 50
             ORDER BY sync_date, event_type, severity, cve
         """;
 
-        // Mapa: "2026-07-01|NEW" → [item1, item2, ...]
         Map<String, List<TimelineVulnItemDto>> detailMap = new java.util.HashMap<>();
         jdbcTemplate.query(detailSql, params, (rs) -> {
             String key = rs.getDate("sync_date").toLocalDate() + "|" + rs.getString("event_type");
@@ -155,7 +155,7 @@ public class TimelineService {
                     .add(new TimelineVulnItemDto(
                             rs.getString("cve"),
                             rs.getString("severity"),
-                            rs.getString("agent_id")
+                            rs.getString("agent_name")
                     ));
         });
 
@@ -217,8 +217,8 @@ public class TimelineService {
         //    ON CONFLICT DO NOTHING por si ya existían
         String insertNew = """
             INSERT INTO vulnerability_timeline_events
-                (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
-            SELECT first_seen_sync, id, cve, severity, agent_id, 'NEW'
+                (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
+            SELECT first_seen_sync, id, cve, severity, agent_id, 'NEW', agent_name, cvss3_score, package_name, status, detection_time
             FROM   vulnerabilities
             WHERE  first_seen_sync IS NOT NULL
             ON CONFLICT DO NOTHING
@@ -229,8 +229,8 @@ public class TimelineService {
         // 3. Insertar eventos RESOLVED
         String insertResolved = """
             INSERT INTO vulnerability_timeline_events
-                (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
-            SELECT DATE(resolved_at), id, cve, severity, agent_id, 'RESOLVED'
+                (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
+            SELECT DATE(resolved_at), id, cve, severity, agent_id, 'RESOLVED', agent_name, cvss3_score, package_name, status, detection_time
             FROM   vulnerabilities
             WHERE  resolved_at IS NOT NULL
             ON CONFLICT DO NOTHING

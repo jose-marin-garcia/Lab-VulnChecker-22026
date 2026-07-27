@@ -252,7 +252,7 @@ const Summary = ({
 
     const tableData = rows.map((row) => [
       row.cve || "-",
-      row.agentId || "-",
+      row.agentName || "-",
       row.severity || "-",
       row.description || "-",
       formatDate(row.detectionTime),
@@ -330,8 +330,12 @@ const Summary = ({
           search={appliedFilters.search}
           cve={appliedFilters.cve || ""}
           severity={appliedFilters.severity !== "all" ? appliedFilters.severity : ""}
-          agentId={appliedFilters.agent || ""}
+          agentName={appliedFilters.agentName || ""}
           highPriorityOnly={effectiveHighPriorityOnly}
+          minCvss={appliedFilters.cvss?.min}
+          maxCvss={appliedFilters.cvss?.max}
+          packageName={appliedFilters.package || ""}
+          status={appliedFilters.status || ""}
           startDate={appliedFilters.startDate || ""}
           endDate={appliedFilters.endDate || ""}
         />
@@ -366,7 +370,7 @@ const Summary = ({
                   )}
 
                   {renderFilterPopover(
-                    "agentId",
+                    "agentName",
                     "agentName",
                     "Nombre de agente",
                     <input
@@ -484,7 +488,7 @@ const Summary = ({
                   rows.map((row) => (
                     <tr key={row.id}>
                       <td>{row.cve || "-"}</td>
-                      <td>{row.agentId || "-"}</td>
+                      <td>{row.agentName || "-"}</td>
                       <td>{row.severity || "-"}</td>
                       <td>{formatDate(row.detectionTime)}</td>
                       <td title={row.description}>

@@ -392,16 +392,16 @@ public class WazuhService {
 
         // Insertar eventos NEW (primera vez que aparece la vulnerabilidad)
         String insertNew = """
-            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
-            SELECT :syncDate, id, cve, severity, agent_id, 'NEW'
+            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
+            SELECT :syncDate, id, cve, severity, agent_id, 'NEW', agent_name, cvss3_score, package_name, status, detection_time
             FROM vulnerabilities
             WHERE first_seen_sync = :syncDate
             """;
 
         // Insertar eventos RESOLVED (marcadas como Resolved en esta pasada del sweep)
         String insertResolved = """
-            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
-            SELECT :syncDate, id, cve, severity, agent_id, 'RESOLVED'
+            INSERT INTO vulnerability_timeline_events (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
+            SELECT :syncDate, id, cve, severity, agent_id, 'RESOLVED', agent_name, cvss3_score, package_name, status, detection_time
             FROM vulnerabilities
             WHERE resolved_at IS NOT NULL
               AND DATE(resolved_at) = :syncDate

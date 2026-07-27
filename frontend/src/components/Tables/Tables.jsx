@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { AlertCircle, RefreshCcw, Filter } from 'lucide-react';
-import { apiClient } from '../../config/auth';
-import TimelinePanel from '../Timeline/TimelinePanel';
-import './Tables.css';
+import { useCallback, useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
+import { AlertCircle, RefreshCcw, Filter } from "lucide-react";
+import { apiClient } from "../../config/auth";
+import TimelinePanel from "../Timeline/TimelinePanel";
+import "./Tables.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_URL = `${API_BASE_URL}/api/vulnerabilities`;
@@ -35,7 +35,10 @@ const Tables = ({
     status: searchParams.get("status") || "all",
     startDate: searchParams.get("startDate") || "",
     endDate: searchParams.get("endDate") || "",
-    cvss: { min: Number(searchParams.get("minCvss")) || 0, max: Number(searchParams.get("maxCvss")) || 10 },
+    cvss: {
+      min: Number(searchParams.get("minCvss")) || 0,
+      max: Number(searchParams.get("maxCvss")) || 10,
+    },
     agentName: searchParams.get("agentName") || "",
     agentGroup: searchParams.get("agentGroup") || "",
     cve: searchParams.get("cve") || "",
@@ -63,6 +66,7 @@ const Tables = ({
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
   const [severityOptions, setSeverityOptions] = useState([]);
+  const [statusOptions, setStatusOptions] = useState([]);
   const effectiveHighPriorityOnly = lockHighPriority || highPriorityOnly;
 
   useEffect(() => {
@@ -73,6 +77,9 @@ const Tables = ({
         const json = await res.json();
         setSeverityOptions(
           Array.isArray(json?.severities) ? json.severities : [],
+        );
+        setStatusOptions(
+          Array.isArray(json?.statuses) ? json.statuses : [],
         );
       } catch {
         // keep default empty options
@@ -194,11 +201,7 @@ const Tables = ({
     } finally {
       setLoading(false);
     }
-  }, [
-    appliedFilters,
-    currentPage,
-    effectiveHighPriorityOnly,
-  ]);
+  }, [appliedFilters, currentPage, effectiveHighPriorityOnly]);
 
   useEffect(() => {
     fetchVulnerabilities();
@@ -319,22 +322,26 @@ const Tables = ({
         </header>
 
         <div className="tables-header-actions">
-          <button className="refresh-button" onClick={clearAllFilters}>Limpiar filtros de esta vista</button>
+          <button className="refresh-button" onClick={clearAllFilters}>
+            Limpiar filtros de esta vista
+          </button>
         </div>
 
         {/* Línea de tiempo — refleja los filtros activos de la tabla */}
         <TimelinePanel
           search={appliedFilters.search}
-          cve={appliedFilters.cve || ''}
-          severity={appliedFilters.severity !== 'all' ? appliedFilters.severity : ''}
-          agentId={appliedFilters.agent || ''}
+          cve={appliedFilters.cve || ""}
+          severity={
+            appliedFilters.severity !== "all" ? appliedFilters.severity : ""
+          }
+          agentName={appliedFilters.agentName || ""}
           highPriorityOnly={effectiveHighPriorityOnly}
           minCvss={appliedFilters.cvss.min}
           maxCvss={appliedFilters.cvss.max}
-          packageName={appliedFilters.package || ''}
-          status={appliedFilters.status || ''}
-          startDate={appliedFilters.startDate || ''}
-          endDate={appliedFilters.endDate || ''}
+          packageName={appliedFilters.package || ""}
+          status={appliedFilters.status || ""}
+          startDate={appliedFilters.startDate || ""}
+          endDate={appliedFilters.endDate || ""}
         />
 
         {error && (
@@ -352,9 +359,9 @@ const Tables = ({
                   <th>ID</th>
 
                   {renderFilterPopover(
-                    "agentId",
                     "agentName",
-                    "Nombre de agente",
+                    "agentName",
+                    "Nombre",
                     <input
                       type="text"
                       className="inline-filter-input"
@@ -416,11 +423,11 @@ const Tables = ({
                         }
                       >
                         <option value="all">Todas</option>
-                        {severityOptions.map((sev) => (
-                          <option key={sev} value={sev}>
-                            {sev}
-                          </option>
-                        ))}
+                        <option value="-">-</option>
+                        <option value="Low">Low</option>
+                        <option value="Medium">Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
                       </select>,
                     )
                   )}
@@ -518,8 +525,11 @@ const Tables = ({
                       }
                     >
                       <option value="all">Todos</option>
-                      <option value="active">Active</option>
-                      <option value="resolved">Resolved</option>
+                      {statusOptions.map((st) => (
+                        <option key={st} value={st}>
+                          {st}
+                        </option>
+                      ))}
                     </select>,
                   )}
 
@@ -597,7 +607,7 @@ const Tables = ({
                     {paginatedRows.map((row) => (
                       <tr key={row.id}>
                         <td>{row.id}</td>
-                        <td>{row.agentId || "-"}</td>
+                        <td>{row.agentName || "-"}</td>
                         <td>{row.cve || "-"}</td>
                         <td>{row.severity || "-"}</td>
                         <td>{row.cvss3Score ?? "-"}</td>

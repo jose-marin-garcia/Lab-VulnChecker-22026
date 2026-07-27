@@ -17,7 +17,7 @@ const SEVERITY_COLORS = {
 function dedupeVulns(vulns) {
   const seen = new Set();
   return vulns.filter((v) => {
-    const key = `${v.cve}|${v.agentId}`;
+    const key = `${v.cve}|${v.agentName}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -33,7 +33,7 @@ const TimelinePanel = ({
   search = "",
   cve = "",
   severity = "",
-  agentId = "",
+  agentName = "",
   highPriorityOnly = false,
   minCvss = 0,
   maxCvss = 10,
@@ -55,7 +55,7 @@ const TimelinePanel = ({
       params.set("months", "12");
       if (cve?.trim()) params.set("cve", cve.trim());
       if (severity?.trim()) params.set("severity", severity.trim());
-      if (agentId?.trim()) params.set("agentId", agentId.trim());
+      if (agentName?.trim()) params.set("agentName", agentName.trim());
       if (highPriorityOnly) params.set("highPriorityOnly", "true");
       if (search?.trim()) params.set("search", search.trim());
       if (minCvss > 0) params.set("minCvss", String(minCvss));
@@ -78,7 +78,7 @@ const TimelinePanel = ({
   }, [
     cve,
     severity,
-    agentId,
+    agentName,
     highPriorityOnly,
     search,
     minCvss,
@@ -249,7 +249,7 @@ const TimelinePanel = ({
                                   }}
                                 />
                                 <span className="tl-cve">{v.cve}</span>
-                                <span className="tl-agent">({v.agentId})</span>
+                                <span className="tl-agent">({v.agentName})</span>
                               </li>
                             ))}
                             {point.newCount > point.newVulns.length && (
@@ -279,7 +279,7 @@ const TimelinePanel = ({
                                   }}
                                 />
                                 <span className="tl-cve">{v.cve}</span>
-                                <span className="tl-agent">({v.agentId})</span>
+                                <span className="tl-agent">({v.agentName})</span>
                               </li>
                             ))}
                             {point.resolvedCount >

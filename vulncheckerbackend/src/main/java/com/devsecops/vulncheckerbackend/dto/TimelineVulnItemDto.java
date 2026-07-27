@@ -1,3 +1,3 @@
 package com.devsecops.vulncheckerbackend.dto;
 
-public record TimelineVulnItemDto(String cve, String severity, String agentId) {}
+public record TimelineVulnItemDto(String cve, String severity, String agentName) {}
