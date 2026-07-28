@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,7 @@ public class WazuhService {
     private final VulnerabilitySnapshotRepository snapshotRepository;
     private final VulnerabilityBatchRepository vulnerabilityBatchRepository;
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
     private final Executor taskExecutor;
 
     @Value("${wazuh.index.vulnerabilities}")
@@ -51,12 +53,14 @@ public class WazuhService {
                         VulnerabilitySnapshotRepository snapshotRepository,
                         VulnerabilityBatchRepository vulnerabilityBatchRepository,
                         NamedParameterJdbcTemplate namedJdbcTemplate,
+                        JdbcTemplate jdbcTemplate,
                         @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
         this.vulnerabilityBatchRepository = vulnerabilityBatchRepository;
         this.namedJdbcTemplate = namedJdbcTemplate;
+        this.jdbcTemplate = jdbcTemplate;
         this.taskExecutor = taskExecutor;
     }
 
@@ -315,10 +319,10 @@ public class WazuhService {
                     currentSyncStatus = "COMPLETED";
 
                     // Actualizar las vistas materializadas de los filtros
-                    vulnerabilityRepository.refreshGroupsView();
-                    vulnerabilityRepository.refreshPackagesView();
-                    vulnerabilityRepository.refreshSeveritiesView();
-                    vulnerabilityRepository.refreshStatusView();
+                    jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_groups");
+                    jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_packages");
+                    jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_severities");
+                    jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_status");
                 }
             } catch (Exception e) {
                 log.error("ERROR CRÍTICO EN HILO DE SINCRONIZACIÓN: ", e);

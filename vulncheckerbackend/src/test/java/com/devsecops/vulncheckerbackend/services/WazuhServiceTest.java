@@ -16,6 +16,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.web.client.RestTemplate;
@@ -46,6 +47,9 @@ class WazuhServiceTest {
     @Mock
     private NamedParameterJdbcTemplate namedJdbcTemplate;
 
+    @Mock
+    private JdbcTemplate jdbcTemplate;
+
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
@@ -61,6 +65,7 @@ class WazuhServiceTest {
                 snapshotRepository,
                 vulnerabilityBatchRepository,
                 namedJdbcTemplate,
+                jdbcTemplate,
                 directExecutor
         );
     }

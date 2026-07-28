@@ -121,8 +121,9 @@ SELECT add_compression_policy('vulnerabilities', INTERVAL '7 days', if_not_exist
 -- =============================================
 
 -- Upsert lookup: WazuhService.processAndSaveBatch()
-CREATE INDEX IF NOT EXISTS idx_vuln_sync_lookup
-    ON vulnerabilities (cve, agent_id, package_name);
+-- UNIQUE constraint required for ON CONFLICT; must include detection_time (hypertable partition column)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vuln_sync_lookup
+    ON vulnerabilities (cve, agent_id, package_name, detection_time);
 
 -- Dashboard/charts: severity distribution + agent filter
 CREATE INDEX IF NOT EXISTS idx_vuln_severity_agent
