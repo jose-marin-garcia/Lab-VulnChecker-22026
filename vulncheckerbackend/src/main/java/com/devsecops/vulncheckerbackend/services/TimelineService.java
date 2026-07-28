@@ -81,9 +81,15 @@ public class TimelineService {
         LocalDate normStartDate = parseDate(startDate);
         LocalDate normEndDate   = parseDate(endDate);
 
-        // Cláusula WHERE compartida por las dos queries de datos
+        // Mapear sync_dates a sus respectivos buckets de inicio de mes
+        List<LocalDate> buckets = new ArrayList<>();
+        for (LocalDate date : chronological) {
+            buckets.add(date.withDayOfMonth(1));
+        }
+
+        // Cláusula WHERE compartida por las dos queries de datos sobre mv_timeline_monthly_cagg
         String sharedWhere = """
-              t.sync_date IN (:dates)
+              t.bucket IN (:buckets)
           AND (:cve       IS NULL OR LOWER(t.cve)      LIKE LOWER(CONCAT('%', :cve,      '%')))
           AND (:severity  IS NULL OR LOWER(t.severity)  = LOWER(:severity))
           AND (:agentName IS NULL OR t.agent_name       = :agentName)
@@ -94,12 +100,12 @@ public class TimelineService {
           AND (:maxCvss   IS NULL OR t.cvss3_score      <= CAST(:maxCvss AS double precision))
           AND (:pkg       IS NULL OR LOWER(t.package_name) LIKE LOWER(CONCAT('%', :pkg, '%')))
           AND (:status    IS NULL OR LOWER(t.status)    = LOWER(:status))
-          AND (CAST(:startDt AS date) IS NULL OR t.detection_time >= CAST(:startDt AS date))
-          AND (CAST(:endDt   AS date) IS NULL OR t.detection_time <= (CAST(:endDt AS date) + INTERVAL '1 day'))
+          AND (CAST(:startDt AS date) IS NULL OR t.detection_date >= CAST(:startDt AS date))
+          AND (CAST(:endDt   AS date) IS NULL OR t.detection_date <= (CAST(:endDt AS date) + INTERVAL '1 day'))
         """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("dates",    chronological)
+                .addValue("buckets",   buckets)
                 .addValue("cve",      normCve,      java.sql.Types.VARCHAR)
                 .addValue("severity", normSeverity,  java.sql.Types.VARCHAR)
                 .addValue("agentName", normAgentName, java.sql.Types.VARCHAR)
@@ -112,44 +118,44 @@ public class TimelineService {
                 .addValue("startDt",  normStartDate, java.sql.Types.DATE)
                 .addValue("endDt",    normEndDate,   java.sql.Types.DATE);
 
-        // ── Query 2: conteos agrupados por (sync_date, event_type) ───────────
+        // ── Query 2: conteos agrupados por (bucket, event_type) ───────────
         String countSql = """
-            SELECT t.sync_date, t.event_type, COUNT(DISTINCT CONCAT(t.cve, t.agent_name)) AS cnt
-            FROM vulnerability_timeline_events t
+            SELECT t.bucket, t.event_type, COUNT(DISTINCT t.cve) AS cnt
+            FROM mv_timeline_monthly_cagg t
             WHERE """ + sharedWhere + """
-            GROUP BY t.sync_date, t.event_type
+            GROUP BY t.bucket, t.event_type
         """;
 
         // Mapa: "2026-07-01|NEW" → 42
         Map<String, Integer> countMap = new java.util.HashMap<>();
         jdbcTemplate.query(countSql, params, (rs) -> {
-            String key = rs.getDate("sync_date").toLocalDate() + "|" + rs.getString("event_type");
+            String key = rs.getDate("bucket").toLocalDate() + "|" + rs.getString("event_type");
             countMap.put(key, rs.getInt("cnt"));
         });
 
         // ── Query 3: detalles para el popover (máx 50 por grupo) ─────────────
-        // Usa ROW_NUMBER() para limitar a 50 registros por (sync_date, event_type)
+        // Usa ROW_NUMBER() para limitar a 50 registros por (bucket, event_type)
         String detailSql = """
-            SELECT sync_date, event_type, cve, severity, agent_name
+            SELECT bucket, event_type, cve, severity, agent_name
             FROM (
-                SELECT sync_date, event_type, cve, severity, agent_name,
+                SELECT bucket, event_type, cve, severity, agent_name,
                        ROW_NUMBER() OVER (
-                           PARTITION BY sync_date, event_type
+                           PARTITION BY bucket, event_type
                            ORDER BY severity, cve
                        ) AS rn
                 FROM (
-                    SELECT DISTINCT t.sync_date, t.event_type, t.cve, t.severity, t.agent_name
-                    FROM vulnerability_timeline_events t
+                    SELECT DISTINCT t.bucket, t.event_type, t.cve, t.severity, t.agent_name
+                    FROM mv_timeline_monthly_cagg t
                     WHERE """ + sharedWhere + """
                 ) dist
             ) ranked
             WHERE rn <= 50
-            ORDER BY sync_date, event_type, severity, cve
+            ORDER BY bucket, event_type, severity, cve
         """;
 
         Map<String, List<TimelineVulnItemDto>> detailMap = new java.util.HashMap<>();
         jdbcTemplate.query(detailSql, params, (rs) -> {
-            String key = rs.getDate("sync_date").toLocalDate() + "|" + rs.getString("event_type");
+            String key = rs.getDate("bucket").toLocalDate() + "|" + rs.getString("event_type");
             detailMap
                     .computeIfAbsent(key, k -> new ArrayList<>())
                     .add(new TimelineVulnItemDto(
@@ -163,9 +169,9 @@ public class TimelineService {
         List<TimelinePointDto> points = new ArrayList<>(chronological.size());
 
         for (LocalDate date : chronological) {
-            String dateStr = date.toString();
-            String newKey      = dateStr + "|NEW";
-            String resolvedKey = dateStr + "|RESOLVED";
+            String bucketStr   = date.withDayOfMonth(1).toString();
+            String newKey      = bucketStr + "|NEW";
+            String resolvedKey = bucketStr + "|RESOLVED";
 
             int newCount      = countMap.getOrDefault(newKey,      0);
             int resolvedCount = countMap.getOrDefault(resolvedKey, 0);

@@ -98,28 +98,38 @@ TRUNCATE TABLE public.vulnerability_timeline_events;
 
 -- Eventos NEW: una entrada por vuln en su sync_date de primera aparición
 INSERT INTO public.vulnerability_timeline_events
-    (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
+    (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
 SELECT
     first_seen_sync,
     id,
     cve,
     severity,
     agent_id,
-    'NEW'
+    'NEW',
+    agent_name,
+    cvss3_score,
+    package_name,
+    status,
+    detection_time
 FROM public.vulnerabilities
 WHERE first_seen_sync IS NOT NULL
 ORDER BY first_seen_sync, id;
 
 -- Eventos RESOLVED: vulns marcadas como Resolved (por fecha de resolved_at)
 INSERT INTO public.vulnerability_timeline_events
-    (sync_date, vulnerability_id, cve, severity, agent_id, event_type)
+    (sync_date, vulnerability_id, cve, severity, agent_id, event_type, agent_name, cvss3_score, package_name, status, detection_time)
 SELECT
     DATE(resolved_at),
     id,
     cve,
     severity,
     agent_id,
-    'RESOLVED'
+    'RESOLVED',
+    agent_name,
+    cvss3_score,
+    package_name,
+    status,
+    detection_time
 FROM public.vulnerabilities
 WHERE resolved_at IS NOT NULL
 ORDER BY DATE(resolved_at), id;
