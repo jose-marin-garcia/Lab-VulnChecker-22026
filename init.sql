@@ -159,9 +159,28 @@ CREATE INDEX IF NOT EXISTS idx_vuln_agent_name_trgm
 CREATE INDEX IF NOT EXISTS vulnerability_snapshots_snapshot_date_idx
     ON public.vulnerability_snapshots USING btree (snapshot_date DESC);
 
+-- Benchmark: filtro completo (severity + agent_group + status + cvss3_score)
+CREATE INDEX IF NOT EXISTS idx_vuln_benchmark_full
+    ON vulnerabilities (severity, agent_group, status, cvss3_score);
+
+-- Benchmark: count agrupado (agent_group + severity)
+CREATE INDEX IF NOT EXISTS idx_vuln_benchmark_count
+    ON vulnerabilities (agent_group, severity);
+
+-- Benchmark: paginación con filtro severidad (severity + id)
+CREATE INDEX IF NOT EXISTS idx_vuln_benchmark_paging
+    ON vulnerabilities (severity, id);
+
+-- Benchmark: filtro por status (status + severity)
+CREATE INDEX IF NOT EXISTS idx_vuln_benchmark_status
+    ON vulnerabilities (status, severity);
+
 -- =============================================
--- PROCEDIMIENTOS ALMACENADOS
+-- PROCEDIMIENTOS ALMACENADOS (DINÁMICOS)
 -- =============================================
+-- SPs dinámicos: construyen SQL solo con filtros activos
+-- para que el optimizer pueda usar índices compuestos.
+
 CREATE OR REPLACE FUNCTION sp_get_vulnerabilities(
     p_severity VARCHAR DEFAULT NULL,
     p_agent_name VARCHAR DEFAULT NULL,
@@ -177,26 +196,54 @@ CREATE OR REPLACE FUNCTION sp_get_vulnerabilities(
     p_offset INT DEFAULT NULL
 )
 RETURNS SETOF vulnerabilities AS $$
+DECLARE
+    v_sql TEXT := 'SELECT * FROM vulnerabilities WHERE 1=1';
 BEGIN
-    RETURN QUERY
-    SELECT v.*
-    FROM vulnerabilities v
-    WHERE 
-        (p_severity IS NULL OR v.severity = p_severity)
-        AND (p_agent_name IS NULL OR v.agent_name = p_agent_name)
-        AND (p_agent_group IS NULL OR v.agent_group = p_agent_group)
-        AND (p_status IS NULL OR v.status = p_status)
-        AND (p_start_date IS NULL OR v.detection_time >= p_start_date)
-        AND (p_end_date IS NULL OR v.detection_time <= p_end_date)
-        AND (p_min_cvss IS NULL OR v.cvss3_score >= p_min_cvss)
-        AND (p_max_cvss IS NULL OR v.cvss3_score <= p_max_cvss)
-        AND (p_cve IS NULL OR v.cve = p_cve)
-        AND (p_package_name IS NULL OR v.package_name = p_package_name)
-    ORDER BY v.id ASC
-    LIMIT COALESCE(p_limit, 20)
-    OFFSET COALESCE(p_offset, 0);
+    IF p_severity IS NOT NULL THEN
+        v_sql := v_sql || ' AND severity = ' || quote_literal(p_severity);
+    END IF;
+    IF p_agent_name IS NOT NULL THEN
+        v_sql := v_sql || ' AND agent_name = ' || quote_literal(p_agent_name);
+    END IF;
+    IF p_agent_group IS NOT NULL THEN
+        v_sql := v_sql || ' AND agent_group = ' || quote_literal(p_agent_group);
+    END IF;
+    IF p_status IS NOT NULL THEN
+        v_sql := v_sql || ' AND status = ' || quote_literal(p_status);
+    END IF;
+    IF p_start_date IS NOT NULL THEN
+        v_sql := v_sql || ' AND detection_time >= ' || quote_literal(p_start_date::TEXT);
+    END IF;
+    IF p_end_date IS NOT NULL THEN
+        v_sql := v_sql || ' AND detection_time <= ' || quote_literal(p_end_date::TEXT);
+    END IF;
+    IF p_min_cvss IS NOT NULL THEN
+        v_sql := v_sql || ' AND cvss3_score >= ' || p_min_cvss::TEXT;
+    END IF;
+    IF p_max_cvss IS NOT NULL THEN
+        v_sql := v_sql || ' AND cvss3_score <= ' || p_max_cvss::TEXT;
+    END IF;
+    IF p_cve IS NOT NULL THEN
+        v_sql := v_sql || ' AND cve = ' || quote_literal(p_cve);
+    END IF;
+    IF p_package_name IS NOT NULL THEN
+        v_sql := v_sql || ' AND package_name = ' || quote_literal(p_package_name);
+    END IF;
+
+    v_sql := v_sql || ' ORDER BY id ASC';
+
+    IF p_limit IS NOT NULL THEN
+        v_sql := v_sql || ' LIMIT ' || p_limit::TEXT;
+    ELSE
+        v_sql := v_sql || ' LIMIT 20';
+    END IF;
+    IF p_offset IS NOT NULL THEN
+        v_sql := v_sql || ' OFFSET ' || p_offset::TEXT;
+    END IF;
+
+    RETURN QUERY EXECUTE v_sql;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION sp_count_vulnerabilities(
     p_severity VARCHAR DEFAULT NULL,
@@ -211,20 +258,45 @@ CREATE OR REPLACE FUNCTION sp_count_vulnerabilities(
     p_package_name VARCHAR DEFAULT NULL
 )
 RETURNS BIGINT AS $$
-    SELECT COUNT(*)
-    FROM vulnerabilities v
-    WHERE
-        (p_severity IS NULL OR v.severity = p_severity)
-        AND (p_agent_name IS NULL OR v.agent_name = p_agent_name)
-        AND (p_agent_group IS NULL OR v.agent_group = p_agent_group)
-        AND (p_status IS NULL OR v.status = p_status)
-        AND (p_start_date IS NULL OR v.detection_time >= p_start_date)
-        AND (p_end_date IS NULL OR v.detection_time <= p_end_date)
-        AND (p_min_cvss IS NULL OR v.cvss3_score >= p_min_cvss)
-        AND (p_max_cvss IS NULL OR v.cvss3_score <= p_max_cvss)
-        AND (p_cve IS NULL OR v.cve = p_cve)
-        AND (p_package_name IS NULL OR v.package_name = p_package_name);
-$$ LANGUAGE sql STABLE;
+DECLARE
+    v_sql TEXT := 'SELECT COUNT(*) FROM vulnerabilities WHERE 1=1';
+    v_count BIGINT;
+BEGIN
+    IF p_severity IS NOT NULL THEN
+        v_sql := v_sql || ' AND severity = ' || quote_literal(p_severity);
+    END IF;
+    IF p_agent_name IS NOT NULL THEN
+        v_sql := v_sql || ' AND agent_name = ' || quote_literal(p_agent_name);
+    END IF;
+    IF p_agent_group IS NOT NULL THEN
+        v_sql := v_sql || ' AND agent_group = ' || quote_literal(p_agent_group);
+    END IF;
+    IF p_status IS NOT NULL THEN
+        v_sql := v_sql || ' AND status = ' || quote_literal(p_status);
+    END IF;
+    IF p_start_date IS NOT NULL THEN
+        v_sql := v_sql || ' AND detection_time >= ' || quote_literal(p_start_date::TEXT);
+    END IF;
+    IF p_end_date IS NOT NULL THEN
+        v_sql := v_sql || ' AND detection_time <= ' || quote_literal(p_end_date::TEXT);
+    END IF;
+    IF p_min_cvss IS NOT NULL THEN
+        v_sql := v_sql || ' AND cvss3_score >= ' || p_min_cvss::TEXT;
+    END IF;
+    IF p_max_cvss IS NOT NULL THEN
+        v_sql := v_sql || ' AND cvss3_score <= ' || p_max_cvss::TEXT;
+    END IF;
+    IF p_cve IS NOT NULL THEN
+        v_sql := v_sql || ' AND cve = ' || quote_literal(p_cve);
+    END IF;
+    IF p_package_name IS NOT NULL THEN
+        v_sql := v_sql || ' AND package_name = ' || quote_literal(p_package_name);
+    END IF;
+
+    EXECUTE v_sql INTO v_count;
+    RETURN v_count;
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 -- VISTAS MATERIALIZADAS
 CREATE MATERIALIZED VIEW public.mv_vulnerabilities_severities AS
