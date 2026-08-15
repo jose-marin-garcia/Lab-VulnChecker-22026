@@ -56,6 +56,9 @@ public class TimescaleConfig implements ApplicationRunner {
             // --- Enable compression on vulnerabilities ---
             enableCompression("vulnerabilities", compressionAfter);
 
+            // --- Refresh Continuous Aggregate ---
+            refreshTimelineAggregate();
+
             log.info(">>> TimescaleDB initialization complete.");
             log.info("    Chunk interval: {} | Min chunks: {} | Max chunks: {} | Compression after: {}",
                     chunkInterval, minChunks, maxChunks, compressionAfter);
@@ -163,6 +166,16 @@ public class TimescaleConfig implements ApplicationRunner {
             case "h" -> value + " hours";
             default -> value + " days";
         };
+    }
+
+    private void refreshTimelineAggregate() {
+        try {
+            log.info("Refrescando Continuous Aggregate de línea de tiempo...");
+            jdbcTemplate.execute("CALL refresh_continuous_aggregate('mv_timeline_monthly_cagg', NULL, NULL)");
+            log.info("Continuous Aggregate 'mv_timeline_monthly_cagg' refrescada con éxito.");
+        } catch (Exception e) {
+            log.warn("No se pudo refrescar el Continuous Aggregate 'mv_timeline_monthly_cagg': {}", e.getMessage());
+        }
     }
 
     private String getDatabaseName() {
