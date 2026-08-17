@@ -18,7 +18,6 @@ const Navbar = () => {
         '/home': 'Panel Principal',
         '/settings': 'Configuración de API',
         '/tables': 'Explorador de Activos',
-        '/charts': 'Análisis Métrico',
         '/evolution': 'Histórico',
         '/critical': 'Alertas Críticas',
         '/filters': 'Filtros de vulnerabilidades',
