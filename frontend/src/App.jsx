@@ -9,7 +9,6 @@ import Settings from './components/Settings/Settings';
 import Consumer from './components/Consumer/Consumer';
 import Tables from './components/Tables/Tables';
 import Summary from './components/Summary/Summary';
-import Charts from './components/Charts/Charts';
 import Evolution from './components/Evolution/Evolution';
 import VulnerabilityFilters from './components/VulnerabilityFilters/VulnerabilityFilters';
 import './App.css';
@@ -119,10 +118,6 @@ const AppContent = () => {
                 <Route
                     path="/summary"
                     element={<ProtectedRoute><FilterRequired view="summary"><Summary /></FilterRequired></ProtectedRoute>}
-                />
-                <Route
-                    path="/charts"
-                    element={<ProtectedRoute><Charts /></ProtectedRoute>}
                 />
                 <Route
                     path="/evolution"
