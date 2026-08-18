@@ -12,7 +12,7 @@ Sistema integral para la visualización y gestión de vulnerabilidades. Arquitec
 | Backend       | Java 21 + Spring Boot 4.x                                            |
 | Base de datos | PostgreSQL 16 (Alpine)                                               |
 | Orquestación  | Docker + Docker Compose                                              |
-| DevSecOps     | Jenkins, SonarQube, OWASP ZAP, Dependency Check, Grafana, Prometheus |
+| DevSecOps     | Jenkins, SonarQube, OWASP ZAP, Dependency Check                      |
 
 ---
 
@@ -42,7 +42,7 @@ docker compose -f docker-compose_prod.yml up --build -d
 
 ### 3️⃣ Stack completo (App + DevSecOps)
 
-Incluye app, Jenkins, Grafana, Prometheus y SonarQube.
+Incluye app, Jenkins y SonarQube.
 
 ```bash
 docker compose --profile devsecops up -d
@@ -53,8 +53,6 @@ docker compose --profile devsecops up -d
 | App frontend           | 5173   | http://localhost:5173                                    |
 | App backend            | 8080   | http://localhost:8080                                    |
 | Jenkins                | 8081   | http://localhost:8081                                    |
-| Grafana                | 3000   | http://localhost:3000                                    |
-| Prometheus             | 9090   | http://localhost:9090                                    |
 | SonarQube              | 9000   | http://localhost:9000                                    |
 | OWASP ZAP (API)        | 8090   | http://localhost:8090                                    |
 | OWASP Dependency Check | —      | Contenedor CLI (`docker exec vuln-dependency-check ...`) |
@@ -68,15 +66,19 @@ docker compose --profile devsecops up -d
 - Docker y Docker Compose
 - Git
 
-### Variables de entorno
+### Variables de entorno y Certificados SSL
 
-Copia `.env.example` a `.env` en la raíz y ajusta valores (no subas `.env` al repo):
-
+1. Copia `.env.example` a `.env` en la raíz y ajusta valores (no subas `.env` al repo):
 ```bash
 cp .env.example .env
 ```
+Mínimo: `DB_USERNAME`, `DB_PASSWORD`, y las 4 variables de configuración de Wazuh (`WAZUH_INDEXER_PORT`, `WAZUH_LOCAL_TUNNEL_PORT`, `WAZUH_VULN_INDEX`, `WAZUH_MONITORING_INDEX`). Opcional: `SONAR_DB_PASSWORD`. En producción usa contraseñas fuertes y distintas.
 
-Mínimo: `DB_USERNAME`, `DB_PASSWORD`, y las 4 variables de configuración de Wazuh (`WAZUH_INDEXER_PORT`, `WAZUH_LOCAL_TUNNEL_PORT`, `WAZUH_VULN_INDEX`, `WAZUH_MONITORING_INDEX`). Opcional: `GRAFANA_ADMIN_USER`, `GRAFANA_ADMIN_PASSWORD`, `SONAR_DB_PASSWORD`. En producción usa contraseñas fuertes y distintas.
+2. Genera los certificados SSL para la conexión cifrada (mTLS) entre Backend y BD:
+```bash
+./generate-certs.sh
+```
+> Detalle de la arquitectura y funcionamiento: **[docs/MTLS_CONEXION_DB_BACKEND.md](docs/MTLS_CONEXION_DB_BACKEND.md)**.
 
 ### Acceso
 
@@ -116,7 +118,6 @@ El pipeline de Jenkins cubre el ciclo DevSecOps con herramientas **100 % gratuit
 | SCA      | **OWASP Dependency Check** (backend y frontend) |
 | Imágenes | **Trivy** (vulnerabilidades en imágenes Docker) |
 | DAST     | **OWASP ZAP** (escaneo dinámico contra la app)  |
-| Operate  | **Grafana** + **Prometheus**                    |
 
 Cobertura del ciclo: **[docs/DEVSECOPS_CICLO.md](docs/DEVSECOPS_CICLO.md)**. Configuración del pipeline y reportes: **[docs/JENKINS_PIPELINE.md](docs/JENKINS_PIPELINE.md)**.
 
@@ -124,6 +125,7 @@ Cobertura del ciclo: **[docs/DEVSECOPS_CICLO.md](docs/DEVSECOPS_CICLO.md)**. Con
 
 ## 🔐 Seguridad
 
+- **Cifrado en tránsito (mTLS):** Conexión Backend ↔ Base de datos cifrada y autenticada mutuamente mediante certificados SSL emitidos por una CA interna (`sslmode=verify-full` y `clientcert=verify-full`). Ver **[docs/MTLS_CONEXION_DB_BACKEND.md](docs/MTLS_CONEXION_DB_BACKEND.md)**.
 - **Redes:** BD de la app en red interna (`app_internal`) sin internet; solo el backend la alcanza. SonarQube y su BD en red aparte; `sonar-db` sin puertos publicados.
 - **Contenedores:** `no-new-privileges`, todos los puertos en `127.0.0.1`, tmpfs en `/tmp` donde aplica.
 - **App:** Cabeceras de seguridad (X-Frame-Options, CSP, etc.) en backend y frontend (Nginx); backend en producción corre como usuario no root.

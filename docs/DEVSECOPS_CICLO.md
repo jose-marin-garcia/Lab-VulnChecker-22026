@@ -16,8 +16,6 @@ Mapa de las fases típicas del ciclo DevSecOps y lo que cubre este proyecto.
 | OWASP Dependency Check | SCA (dependencias) | Open source (Apache 2.0) |
 | Gitleaks | Detección de secretos | Open source (MIT) |
 | Trivy | Escaneo de imágenes Docker | Open source (Apache 2.0) |
-| Grafana | Dashboards y métricas | Open source (AGPL) |
-| Prometheus | Métricas | Open source (Apache 2.0) |
 | PostgreSQL | Bases de datos (app, Sonar) | Open source (PostgreSQL License) |
 
 ---
@@ -32,7 +30,7 @@ Mapa de las fases típicas del ciclo DevSecOps y lo que cubre este proyecto.
 | **4. Test** | Tests funcionales y de seguridad | ✅ | JUnit, **OWASP Dependency Check** (SCA), **SonarQube** (SAST), **DAST (ZAP)** |
 | **5. Artefactos** | Imágenes y binarios seguros | ✅ | **Trivy** (escaneo de imágenes Docker) |
 | **6. Release / Deploy** | Despliegue controlado y aprobado | Parcial | Pipeline despliega solo para DAST; no hay staging/prod automático con gates |
-| **7. Operate / Monitor** | Visibilidad y respuesta | ✅ | **Grafana** + **Prometheus** (métricas), Actuator |
+| **7. Operate / Monitor** | Visibilidad y respuesta | ✅ | Actuator con métricas |
 
 ---
 
@@ -45,7 +43,7 @@ Mapa de las fases típicas del ciclo DevSecOps y lo que cubre este proyecto.
 - **Escaneo de imágenes:** Trivy sobre las imágenes Docker del backend y frontend.
 - **Tests:** JUnit, publicación de resultados.
 - **Calidad:** Quality Gate de SonarQube (opcional).
-- **Observabilidad:** Prometheus + Grafana, Actuator con métricas.
+- **Observabilidad:** Actuator con métricas.
 
 ---
 

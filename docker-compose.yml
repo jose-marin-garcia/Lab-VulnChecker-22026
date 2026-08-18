@@ -18,6 +18,17 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./certs:/mnt/certs:ro # certificados ssl para conexion backend db
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        mkdir -p /var/lib/postgresql/certs
+        cp /mnt/certs/* /var/lib/postgresql/certs/
+        chmod 600 /var/lib/postgresql/certs/server.key
+        chmod 644 /var/lib/postgresql/certs/server.crt /var/lib/postgresql/certs/ca.crt /var/lib/postgresql/certs/pg_hba.conf
+        chown -R postgres:postgres /var/lib/postgresql/certs
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/var/lib/postgresql/certs/server.crt -c ssl_key_file=/var/lib/postgresql/certs/server.key -c ssl_ca_file=/var/lib/postgresql/certs/ca.crt -c hba_file=/var/lib/postgresql/certs/pg_hba.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-vulnuser} -d vulncheck"]
       interval: 5s
@@ -45,13 +56,14 @@ services:
       - ./vulncheckerbackend/src:/app/src
       - ./vulncheckerbackend/pom.xml:/app/pom.xml
       - ./vulncheckerbackend/.mvn:/app/.mvn
+      - ./certs:/app/certs:ro # certificados ssl para conexion backend db
       - m2_cache:/root/.m2
     environment:
       - DB_USERNAME=${DB_USERNAME:-vulnuser}
       - DB_PASSWORD=${DB_PASSWORD:-vulnpass}
       - DB_O_LOCALHOST=db
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vulncheck
-      - SPRING_FLYWAY_URL=jdbc:postgresql://db:5432/vulncheck
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/vulncheck?ssl=true&sslmode=verify-full&sslrootcert=/app/certs/ca.crt&sslcert=/app/certs/client.crt&sslkey=/app/certs/client.pk8
+      - SPRING_FLYWAY_URL=jdbc:postgresql://db:5432/vulncheck?ssl=true&sslmode=verify-full&sslrootcert=/app/certs/ca.crt&sslcert=/app/certs/client.crt&sslkey=/app/certs/client.pk8
       - WAZUH_INDEXER_PORT=${WAZUH_INDEXER_PORT}
       - WAZUH_LOCAL_TUNNEL_PORT=${WAZUH_LOCAL_TUNNEL_PORT}
       - WAZUH_VULN_INDEX=${WAZUH_VULN_INDEX}
@@ -114,59 +126,6 @@ services:
     user: root
     security_opt:
       - no-new-privileges:true
-    restart: unless-stopped
-
-  grafana:
-    profiles:
-      - devsecops
-    image: grafana/grafana:latest
-    container_name: vuln-grafana
-    networks:
-      - devsecops_net
-    ports:
-      - '127.0.0.1:3000:3000'
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
-      - GF_SECURITY_DISABLE_INITIAL_ADMIN_CREATION=false
-      # Con HTTPS (reverse proxy) poner a true: GF_SECURITY_COOKIE_SECURE, GF_SECURITY_STRICT_TRANSPORT_SECURITY
-      - GF_SECURITY_COOKIE_SECURE=${GF_COOKIE_SECURE:-false}
-      - GF_SECURITY_STRICT_TRANSPORT_SECURITY=${GF_HSTS:-false}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
-    depends_on:
-      - prometheus
-    security_opt:
-      - no-new-privileges:true
-    read_only: false
-    tmpfs:
-      - /tmp
-    restart: unless-stopped
-
-  prometheus:
-    profiles:
-      - devsecops
-    image: prom/prometheus:latest
-    container_name: vuln-prometheus
-    networks:
-      - devsecops_net
-    ports:
-      - '127.0.0.1:9090:9090'
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-lifecycle'
-    security_opt:
-      - no-new-privileges:true
-    read_only: false
-    tmpfs:
-      - /tmp
     restart: unless-stopped
 
   # Si ves "upgrade from is too old" o "cannot downgrade": borra la BD de SonarQube y arranca limpio (ver README o comentario en sonar-db).
@@ -269,8 +228,6 @@ volumes:
   sonar_db_data:
   sonarqube_data:
   jenkins_home:
-  grafana_data:
-  prometheus_data:
   m2_cache:
   dependency_check_data:
   postgres_data:

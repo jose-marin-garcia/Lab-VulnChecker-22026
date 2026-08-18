@@ -1,3 +1,7 @@
+# --- Certificados SSL ---
+certs/*
+!certs/pg_hba.conf
+
 # --- Frontend ---
 frontend/node_modules/
 frontend/dist/

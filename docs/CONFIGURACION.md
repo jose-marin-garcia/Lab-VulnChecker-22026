@@ -27,12 +27,8 @@ Este documento recopila **todas las configuraciones** necesarias para poner en m
 
 | Variable | Descripción | Por defecto |
 |----------|-------------|-------------|
-| `GRAFANA_ADMIN_USER` | Usuario admin de Grafana | `admin` |
-| `GRAFANA_ADMIN_PASSWORD` | Contraseña admin de Grafana | `admin` |
 | `SONAR_DB_PASSWORD` | Contraseña de la BD de SonarQube | `sonar` |
 | `NVD_API_KEY` | API key de NVD (evita 429 en Dependency Check) | — |
-| `GF_COOKIE_SECURE` | Grafana tras HTTPS | `false` |
-| `GF_HSTS` | HSTS en Grafana | `false` |
 
 **NVD_API_KEY:** Obtener en [nvd.nist.gov/developers/request-an-api-key](https://nvd.nist.gov/developers/request-an-api-key). Si se define en `.env`, el pipeline la usa cuando no se pasa por parámetro en el job.
 
@@ -223,23 +219,13 @@ docker compose up -d jenkins
 
 ---
 
-## 9. Primer acceso a Grafana
-
-1. Abrir **http://localhost:3000**.
-2. Usuario y contraseña por defecto (si no se cambiaron en `.env`): `admin` / `admin` (o los definidos en `GRAFANA_ADMIN_USER` y `GRAFANA_ADMIN_PASSWORD`).
-3. Prometheus suele estar ya configurado como datasource (provisioning en `grafana/provisioning`).
-
----
-
-## 10. Puertos y URLs de referencia
+## 9. Puertos y URLs de referencia
 
 | Servicio | Puerto (host) | URL (desde el host) |
 |---------|----------------|---------------------|
 | App frontend | 5173 | http://localhost:5173 |
 | App backend | 8080 | http://localhost:8080 |
 | Jenkins | 8081 | http://localhost:8081 |
-| Grafana | 3000 | http://localhost:3000 |
-| Prometheus | 9090 | http://localhost:9090 |
 | SonarQube | 9000 | http://localhost:9000 |
 | OWASP ZAP (API) | 8090 | http://localhost:8090 |
 
@@ -247,7 +233,7 @@ Todos los puertos están publicados en `127.0.0.1` (solo acceso desde la máquin
 
 ---
 
-## 11. Resumen rápido de comprobación
+## 10. Resumen rápido de comprobación
 
 Antes de ejecutar el pipeline, verificar:
 

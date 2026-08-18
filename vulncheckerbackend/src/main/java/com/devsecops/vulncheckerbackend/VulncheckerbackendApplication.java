@@ -9,9 +9,11 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import jakarta.annotation.PostConstruct;
+import org.springframework.retry.annotation.EnableRetry;
 import java.util.TimeZone;
 
 @SpringBootApplication
+@EnableRetry
 public class VulncheckerbackendApplication {
 
     @PostConstruct
