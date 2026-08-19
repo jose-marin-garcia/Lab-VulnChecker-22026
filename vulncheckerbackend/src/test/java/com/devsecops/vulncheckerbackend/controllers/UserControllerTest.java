@@ -2,7 +2,10 @@ package com.devsecops.vulncheckerbackend.controllers;
 
 import com.devsecops.vulncheckerbackend.config.JwtUtil;
 import com.devsecops.vulncheckerbackend.entities.UserEntity;
+import com.devsecops.vulncheckerbackend.repositories.AgentCredentialRepository;
 import com.devsecops.vulncheckerbackend.repositories.UserRepository;
+import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
+import com.devsecops.vulncheckerbackend.services.InfrastructureCredentialService;
 import com.devsecops.vulncheckerbackend.services.UserService;
 import com.devsecops.vulncheckerbackend.support.TestDataFactory;
 import org.junit.jupiter.api.Test;
@@ -37,6 +40,15 @@ class UserControllerTest {
 
     @MockitoBean
     private UserRepository userRepository;
+
+    @MockitoBean
+    private VulnerabilityRepository vulnerabilityRepository;
+
+    @MockitoBean
+    private AgentCredentialRepository agentCredentialRepository;
+
+    @MockitoBean
+    private InfrastructureCredentialService infraCredentialService;
 
     @MockitoBean
     private BCryptPasswordEncoder passwordEncoder;
