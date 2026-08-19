@@ -441,3 +441,42 @@
 .admin-box .creds-table th {
     border-bottom-color: #f59e0b33;
 }
+
+/* Agent select dropdown */
+.agent-select {
+    width: 100%;
+    padding: 6px 10px;
+    background: #2a2a2a;
+    color: #e2e8f0;
+    border: 1px solid #444;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+}
+
+.agent-select:focus {
+    outline: none;
+    border-color: #f59e0b;
+}
+
+/* View users list button */
+.view-users-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.view-users-btn:hover {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
+}

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     ShieldCheck, Lock, User, Server, Database, Edit2, X,
-    Users, Check, Trash2, UserCheck
+    Users, Check, Trash2, UserCheck, List as ListIcon
 } from 'lucide-react';
 import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
@@ -10,6 +11,8 @@ import './Settings.css';
 const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 const Settings = () => {
+    const navigate = useNavigate();
+
     // Estados Infraestructura
     const [infraName, setInfraName] = useState('');
     const [wazuhIp, setWazuhIp] = useState('');
@@ -19,6 +22,8 @@ const Settings = () => {
 
     // Estados Admin (Gestión de Usuarios)
     const [pendingUsers, setPendingUsers] = useState([]);
+    const [agentsList, setAgentsList] = useState([]);
+    const [selectedAgents, setSelectedAgents] = useState({}); // { userId: { agentId, agentName } }
     const userRole = localStorage.getItem('user_role'); // USER o ADMIN
 
     // Estados de Control
@@ -38,6 +43,10 @@ const Settings = () => {
             if (userRole === 'ADMIN') {
                 const resUsers = await apiClient.get(`${API_BASE_URL}/api/users/pending`);
                 if (resUsers.ok) setPendingUsers(await resUsers.json());
+
+                // Cargar lista de agentes
+                const resAgents = await apiClient.get(`${API_BASE_URL}/api/users/agents`);
+                if (resAgents.ok) setAgentsList(await resAgents.json());
             }
         } catch (error) {
             console.error('Error al cargar datos:', error);
@@ -47,10 +56,36 @@ const Settings = () => {
     useEffect(() => { fetchData(); }, [fetchData]);
 
     // --- LÓGICA DE ADMINISTRACIÓN ---
+    const handleAgentSelect = (userId, value) => {
+        if (!value) {
+            setSelectedAgents(prev => {
+                const copy = { ...prev };
+                delete copy[userId];
+                return copy;
+            });
+            return;
+        }
+        const agent = agentsList.find(a => a.agentId === value);
+        if (agent) {
+            setSelectedAgents(prev => ({
+                ...prev,
+                [userId]: { agentId: agent.agentId, agentName: agent.agentName }
+            }));
+        }
+    };
+
     const handleActivateUser = async (id) => {
-        if (!window.confirm("¿Confirmas la activación de este usuario?")) return;
+        const selected = selectedAgents[id];
+        if (!selected) {
+            alert("Debes seleccionar un agente antes de activar al usuario.");
+            return;
+        }
+        if (!window.confirm(`¿Confirmas la activación de este usuario con el agente "${selected.agentName}"?`)) return;
         try {
-            const res = await apiClient.patch(`${API_BASE_URL}/api/users/${id}/activate`);
+            const res = await apiClient.patch(`${API_BASE_URL}/api/users/${id}/activate`, {
+                agentId: selected.agentId,
+                agentName: selected.agentName
+            });
             if (res.ok) fetchData();
         } catch (error) { console.error('Error:', error); }
     };
@@ -166,6 +201,13 @@ const Settings = () => {
                                 <h2>Aprobación de Usuarios</h2>
                                 <p>Solicitudes de acceso pendientes de revisión.</p>
                             </div>
+                            <button
+                                className="view-users-btn"
+                                onClick={() => navigate('/users-list')}
+                                style={{ marginLeft: 'auto' }}
+                            >
+                                <ListIcon size={16} /> Ver Lista de Usuarios
+                            </button>
                         </div>
 
                         <div className="pending-list">
@@ -177,6 +219,7 @@ const Settings = () => {
                                         <tr>
                                             <th>Nombre Completo</th>
                                             <th>Email</th>
+                                            <th>Agente<br/><small>nombre - grupo</small></th>
                                             <th>Acciones</th>
                                         </tr>
                                     </thead>
@@ -186,11 +229,26 @@ const Settings = () => {
                                                 <td>{`${u.firstName} ${u.paternalLastName} ${u.maternalLastName}`}</td>
                                                 <td style={{ color: '#888' }}>{u.email}</td>
                                                 <td>
+                                                    <select
+                                                        className="agent-select"
+                                                        value={selectedAgents[u.id]?.agentId || ''}
+                                                        onChange={(e) => handleAgentSelect(u.id, e.target.value)}
+                                                    >
+                                                        <option value="">-- Seleccionar Agente --</option>
+                                                        {agentsList.map(agent => (
+                                                            <option key={agent.agentId} value={agent.agentId}>
+                                                                {agent.agentName} - {agent.agentGroup}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td>
                                                     <div className="admin-actions">
                                                         <button
                                                             className="approve-btn"
                                                             onClick={() => handleActivateUser(u.id)}
                                                             title="Activar Usuario"
+                                                            disabled={!selectedAgents[u.id]}
                                                         >
                                                             <UserCheck size={16} />
                                                         </button>

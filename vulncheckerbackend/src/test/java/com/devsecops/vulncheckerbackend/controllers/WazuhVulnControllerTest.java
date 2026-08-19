@@ -130,7 +130,7 @@ class WazuhVulnControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("processing"));
 
-        verify(wazuhService).syncAllVulnerabilitiesMasive(any(WazuhCredentials.class));
+        verify(wazuhService).syncAllVulnerabilitiesMasive(any(WazuhCredentials.class), eq(1L));
     }
 
     @Test

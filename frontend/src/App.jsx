@@ -11,6 +11,7 @@ import Tables from './components/Tables/Tables';
 import Summary from './components/Summary/Summary';
 import Evolution from './components/Evolution/Evolution';
 import VulnerabilityFilters from './components/VulnerabilityFilters/VulnerabilityFilters';
+import UsersList from './components/UsersList/UsersList';
 import './App.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL;
@@ -89,6 +90,10 @@ const AppContent = () => {
                 <Route 
                     path="/settings" 
                     element={<ProtectedRoute adminOnly={true}><Settings /></ProtectedRoute>} 
+                />
+                <Route 
+                    path="/users-list" 
+                    element={<ProtectedRoute adminOnly={true}><UsersList /></ProtectedRoute>} 
                 />
                 <Route 
                     path="/consumer" 

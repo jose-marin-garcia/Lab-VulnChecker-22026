@@ -216,7 +216,7 @@ const TimelinePanel = ({
                 {/* Popover al hacer hover/click */}
                 {isActive && (
                   <div
-                    className="tl-popover"
+                    className={`tl-popover ${idx >= points.length / 2 ? 'tl-popover--left' : 'tl-popover--right'}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="tl-popover-header">

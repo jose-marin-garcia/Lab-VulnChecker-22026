@@ -10,6 +10,7 @@
     margin: 1rem 0 0.5rem;
     position: relative;
     overflow: visible;
+    z-index: 50; /* Added to ensure it stays above the table */
 }
 
 /* ─── Header ─────────────────────────────────── */
@@ -183,9 +184,6 @@
 /* ─── Popover ────────────────────────────────── */
 .tl-popover {
     position: absolute;
-    bottom: calc(100% + 16px);
-    left: 50%;
-    transform: translateX(-50%);
     z-index: 1000;
     background: rgba(22, 27, 56, 0.97);
     backdrop-filter: blur(12px);
@@ -194,24 +192,32 @@
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(99,119,255,0.1);
     width: 380px;
     max-width: 90vw;
-    animation: tl-popover-in 0.18s ease;
     overflow: hidden;
 }
 
-/* Evitar que el popover se salga en los extremos */
-.tl-point-wrapper:first-child .tl-popover  { left: 0;    transform: translateX(0); }
-.tl-point-wrapper:last-child  .tl-popover  { left: auto; right: 0; transform: translateX(0); }
-
-@keyframes tl-popover-in {
-    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tl-popover--right {
+    top: 50%;
+    left: calc(50% + 16px);
+    transform: translateY(-80%);
+    animation: tl-popover-in-right 0.18s ease forwards;
 }
 
-.tl-point-wrapper:first-child .tl-popover  { animation-name: tl-popover-in-left; }
-.tl-point-wrapper:last-child  .tl-popover  { animation-name: tl-popover-in-right; }
+.tl-popover--left {
+    top: 50%;
+    right: calc(50% + 16px);
+    transform: translateY(-80%);
+    animation: tl-popover-in-left 0.18s ease forwards;
+}
 
-@keyframes tl-popover-in-left  { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes tl-popover-in-right { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tl-popover-in-right {
+    from { opacity: 0; transform: translateY(-80%) translateX(-8px); }
+    to   { opacity: 1; transform: translateY(-80%) translateX(0); }
+}
+
+@keyframes tl-popover-in-left {
+    from { opacity: 0; transform: translateY(-80%) translateX(8px); }
+    to   { opacity: 1; transform: translateY(-80%) translateX(0); }
+}
 
 .tl-popover-header {
     display: flex;

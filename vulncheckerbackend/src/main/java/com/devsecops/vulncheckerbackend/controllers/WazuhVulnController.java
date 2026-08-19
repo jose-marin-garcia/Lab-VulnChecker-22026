@@ -147,7 +147,7 @@ public class WazuhVulnController {
 		);
 
 		// Ejecución asíncrona delegada al servicio
-		wazuhService.syncAllVulnerabilitiesMasive(credentials);
+		wazuhService.syncAllVulnerabilitiesMasive(credentials, request.getInfrastructureCredentialId());
 
 		return ResponseEntity.ok(Map.of(
 			"status", "processing",
@@ -180,7 +180,7 @@ public class WazuhVulnController {
             if (msg.contains("NoRouteToHostException") || msg.contains("Host is unreachable")) {
                 customMessage = "La dirección IP no es accesible o no existe en la red. Verifica que la IP sea correcta y el servidor esté encendido.";
             } else if (msg.contains("Connection refused") || msg.contains("ConnectException")) {
-                customMessage = "Conexión rechazada. La IP es correcta pero el puerto SSH (22) no está abierto o el servicio no está disponible.";
+                customMessage = "Conexión rechazada al Indexador de Wazuh. Verifica que el puerto 9200 esté abierto y accesible desde este servidor.";
             } else if (msg.contains("UnknownHostException")) {
                 customMessage = "El nombre de host o la dirección IP no son válidos. Revisa la IP ingresada.";
             } else if (msg.contains("timeout: socket is not established")) {

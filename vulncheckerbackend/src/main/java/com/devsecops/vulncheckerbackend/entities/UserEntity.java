@@ -37,6 +37,12 @@ public class UserEntity {
     @Column(nullable = false)
     private boolean active = false;
 
+    @Column(name = "assigned_agent_id")
+    private String assignedAgentId;
+
+    @Column(name = "assigned_agent_name")
+    private String assignedAgentName;
+
     // Constructores
     public UserEntity() {
         this.active = false;
@@ -70,6 +76,12 @@ public class UserEntity {
     public boolean isActive() { return active; }
     public void setActive(boolean active) { this.active = active; }
     public void setActive() { this.active = true; }
+
+    public String getAssignedAgentId() { return assignedAgentId; }
+    public void setAssignedAgentId(String assignedAgentId) { this.assignedAgentId = assignedAgentId; }
+
+    public String getAssignedAgentName() { return assignedAgentName; }
+    public void setAssignedAgentName(String assignedAgentName) { this.assignedAgentName = assignedAgentName; }
 
     @PrePersist
     protected void onCreate() {

@@ -53,6 +53,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/activate").hasRole(ROLE_ADMIN)
                 .requestMatchers(HttpMethod.DELETE, "/api/users/*").hasRole(ROLE_ADMIN)
                 .requestMatchers("/api/credentials/**").hasRole(ROLE_ADMIN)
+                // Permitir a usuarios autenticados (USER o ADMIN) ver y actualizar sus credenciales
+                .requestMatchers(HttpMethod.GET, "/api/infra-credentials/user/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/infra-credentials/**").authenticated()
+                // El resto (POST, DELETE) solo ADMIN
                 .requestMatchers("/api/infra-credentials/**").hasRole(ROLE_ADMIN)
                 .anyRequest().authenticated()
             )

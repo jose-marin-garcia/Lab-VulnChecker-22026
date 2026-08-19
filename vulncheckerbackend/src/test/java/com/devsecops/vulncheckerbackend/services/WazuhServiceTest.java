@@ -1,5 +1,6 @@
 package com.devsecops.vulncheckerbackend.services;
 
+import com.devsecops.vulncheckerbackend.repositories.AgentCredentialRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityBatchRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
@@ -50,6 +51,9 @@ class WazuhServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private AgentCredentialRepository agentCredentialRepository;
+
     private WazuhService service;
 
     private static final WazuhCredentials CREDS = new WazuhCredentials(
@@ -66,7 +70,8 @@ class WazuhServiceTest {
                 vulnerabilityBatchRepository,
                 namedJdbcTemplate,
                 jdbcTemplate,
-                directExecutor
+                directExecutor,
+                agentCredentialRepository
         );
     }
 
@@ -145,7 +150,7 @@ class WazuhServiceTest {
                 ArgumentMatchers.<ParameterizedTypeReference<Map<String, Object>>>any()
         )).thenReturn(ResponseEntity.ok(firstPage), ResponseEntity.ok(emptyPage));
 
-        service.syncAllVulnerabilitiesMasive(CREDS);
+        service.syncAllVulnerabilitiesMasive(CREDS, 1L);
 
         verify(vulnerabilityBatchRepository).batchUpsert(anyList());
         verify(namedJdbcTemplate, times(2)).update(anyString(), any(org.springframework.jdbc.core.namedparam.MapSqlParameterSource.class));

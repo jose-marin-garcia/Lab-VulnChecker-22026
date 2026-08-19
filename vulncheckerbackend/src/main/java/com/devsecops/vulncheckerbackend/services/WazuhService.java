@@ -1,8 +1,10 @@
 package com.devsecops.vulncheckerbackend.services;
 
 import com.devsecops.vulncheckerbackend.dto.WazuhCredentials;
+import com.devsecops.vulncheckerbackend.entities.AgentCredentialEntity;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilityEntity;
 import com.devsecops.vulncheckerbackend.entities.VulnerabilitySnapshotEntity;
+import com.devsecops.vulncheckerbackend.repositories.AgentCredentialRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityBatchRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilityRepository;
 import com.devsecops.vulncheckerbackend.repositories.VulnerabilitySnapshotRepository;
@@ -41,6 +43,7 @@ public class WazuhService {
     private final NamedParameterJdbcTemplate namedJdbcTemplate;
     private final JdbcTemplate jdbcTemplate;
     private final Executor taskExecutor;
+    private final AgentCredentialRepository agentCredentialRepository;
 
     @Value("${wazuh.index.vulnerabilities}")
     private String vulnIndex;
@@ -54,7 +57,8 @@ public class WazuhService {
                         VulnerabilityBatchRepository vulnerabilityBatchRepository,
                         NamedParameterJdbcTemplate namedJdbcTemplate,
                         JdbcTemplate jdbcTemplate,
-                        @Qualifier("wazuhTaskExecutor") Executor taskExecutor) {
+                        @Qualifier("wazuhTaskExecutor") Executor taskExecutor,
+                        AgentCredentialRepository agentCredentialRepository) {
         this.restTemplate = restTemplate;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.snapshotRepository = snapshotRepository;
@@ -62,6 +66,7 @@ public class WazuhService {
         this.namedJdbcTemplate = namedJdbcTemplate;
         this.jdbcTemplate = jdbcTemplate;
         this.taskExecutor = taskExecutor;
+        this.agentCredentialRepository = agentCredentialRepository;
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -250,7 +255,7 @@ public class WazuhService {
         int getTotal() { return crit + high + med + low; }
     }
 
-    public void syncAllVulnerabilitiesMasive(WazuhCredentials creds) {
+    public void syncAllVulnerabilitiesMasive(WazuhCredentials creds, Long credentialId) {
         currentSyncStatus = "RUNNING";
         currentSyncError = null;
         taskExecutor.execute(() -> {
@@ -263,9 +268,8 @@ public class WazuhService {
 
             try {
                 LocalDateTime currentSyncTime = LocalDateTime.now();
-                
-                try {
-                    Map<String, String> agentGroupsDict = fetchAgentGroups(creds);
+                // No nested try
+                Map<String, String> agentGroupsDict = fetchAgentGroups(creds);
 
                     while (hasMore) {
                         String searchAfterClause = (lastSortValues != null) 
@@ -302,8 +306,22 @@ public class WazuhService {
                             }
                         } else { hasMore = false; }
                     }
-                } finally {
+
+                    // FASE POST-SINCRONIZACIÓN (Sólo si no hubo excepciones)
                     countersByAgent.values().forEach(this::saveSnapshot);
+
+                    // Upsert agent-credential mappings
+                    if (credentialId != null) {
+                        for (String agentIdKey : countersByAgent.keySet()) {
+                            AgentCredentialEntity agentCred = agentCredentialRepository
+                                    .findFirstByAgentId(agentIdKey)
+                                    .orElse(new AgentCredentialEntity());
+                            agentCred.setAgentId(agentIdKey);
+                            agentCred.setCredentialId(credentialId);
+                            agentCredentialRepository.save(agentCred);
+                        }
+                        log.info("Upsert de agent-credential completado para {} agentes.", countersByAgent.size());
+                    }
                     
                     // Fase Sweep: Marcar como resueltas las vulnerabilidades que no vimos hoy
                     if (!countersByAgent.isEmpty()) {
@@ -323,7 +341,10 @@ public class WazuhService {
                     jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_packages");
                     jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_severities");
                     jdbcTemplate.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY mv_vulnerabilities_status");
-                }
+                    
+                    // Refrescar el Continuous Aggregate del timeline
+                    jdbcTemplate.execute("CALL refresh_continuous_aggregate('mv_timeline_monthly_cagg', NULL, NULL)");
+
             } catch (Exception e) {
                 log.error("ERROR CRÍTICO EN HILO DE SINCRONIZACIÓN: ", e);
                 currentSyncError = e.getMessage() != null ? e.getMessage() : "Error desconocido";
