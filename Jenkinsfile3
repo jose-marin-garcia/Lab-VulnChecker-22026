@@ -239,7 +239,7 @@ pipeline {
                                         dir('frontend') {
                                             sh """
                                                 docker run --rm \
-                                                    --network vulnchecker_devsecops \
+                                                    --network container:vuln-jenkins \
                                                     --volumes-from vuln-jenkins \
                                                     -w "\$(pwd)" \
                                                     sonarsource/sonar-scanner-cli \
