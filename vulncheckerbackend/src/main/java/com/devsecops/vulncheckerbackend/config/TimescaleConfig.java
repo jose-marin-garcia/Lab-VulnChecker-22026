@@ -47,14 +47,7 @@ public class TimescaleConfig implements ApplicationRunner {
             // --- vulnerability_snapshots hypertable ---
             convertToHypertable("vulnerability_snapshots", "snapshot_date", true, "1d");
 
-            // --- vulnerabilities hypertable (main table, 25M+ rows) ---
-            convertToHypertable("vulnerabilities", "detection_time", false, chunkInterval);
-
-            // --- Limit chunk count (min/max) ---
-            enforceChunkLimits("vulnerabilities");
-
-            // --- Enable compression on vulnerabilities ---
-            enableCompression("vulnerabilities", compressionAfter);
+            // --- vulnerabilities: NO longer a hypertable (upsert fixes, avoids detection_time chunk conflicts) ---
 
             // --- Refresh Continuous Aggregate ---
             refreshTimelineAggregate();

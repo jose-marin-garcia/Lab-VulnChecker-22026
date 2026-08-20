@@ -240,8 +240,8 @@ pipeline {
                                             sh """
                                                 docker run --rm \
                                                     --network container:vuln-jenkins \
-                                                    -v "\$(pwd):/usr/src" \
-                                                    -w /usr/src \
+                                                    --volumes-from vuln-jenkins \
+                                                    -w "\$(pwd)" \
                                                     sonarsource/sonar-scanner-cli \
                                                     -Dsonar.host.url=\${SONAR_HOST_URL:-\${SONAR_HOST}} \
                                                     -Dsonar.token=\${SONAR_TOKEN} \
