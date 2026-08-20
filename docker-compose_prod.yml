@@ -55,36 +55,6 @@ services:
     security_opt:
       - no-new-privileges:true
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: vuln-prometheus-prod
-    restart: unless-stopped
-    networks:
-      - backend_net
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-    security_opt:
-      - no-new-privileges:true
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: vuln-grafana-prod
-    restart: unless-stopped
-    networks:
-      - backend_net
-    ports:
-      - '3000:3000'
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
-    security_opt:
-      - no-new-privileges:true
-
 networks:
   backend_net:
     driver: bridge
@@ -93,5 +63,3 @@ networks:
 
 volumes:
   postgres_data:
-  prometheus_data:
-  grafana_data:

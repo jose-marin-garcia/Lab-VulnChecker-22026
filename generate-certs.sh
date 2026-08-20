@@ -1,7 +1,17 @@
 #!/bin/bash
 set -e
 
-CERTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/certs"
+# Cargar variables del .env si existe (mismo directorio que el script)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    # shellcheck disable=SC1091
+    source "$SCRIPT_DIR/.env"
+    set +a
+    echo "[.env] Variables cargadas desde $SCRIPT_DIR/.env"
+fi
+
+CERTS_DIR="$SCRIPT_DIR/certs"
 mkdir -p "$CERTS_DIR"
 cd "$CERTS_DIR"
 
