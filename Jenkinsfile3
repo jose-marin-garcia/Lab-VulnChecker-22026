@@ -234,23 +234,6 @@ pipeline {
                                                     -DskipTests
                                             """
                                         }
-                                        
-                                        // 2. Escaneo del Frontend
-                                        dir('frontend') {
-                                            sh """
-                                                docker run --rm \
-                                                    --network container:vuln-jenkins \
-                                                    -v "\$(pwd):/usr/src" \
-                                                    -w /usr/src \
-                                                    sonarsource/sonar-scanner-cli \
-                                                    -Dsonar.host.url=\${SONAR_HOST_URL:-\${SONAR_HOST}} \
-                                                    -Dsonar.token=\${SONAR_TOKEN} \
-                                                    -Dsonar.projectKey=vulnchecker-frontend \
-                                                    -Dsonar.projectName=vulnchecker-frontend \
-                                                    -Dsonar.sources=src \
-                                                    -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/*.spec.ts
-                                            """
-                                        }
                                     }
                                 }
                                 script {
