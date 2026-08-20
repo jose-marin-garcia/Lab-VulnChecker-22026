@@ -1,0 +1,15 @@
+[allowlist]
+description = "Archivos e ignorados del proyecto VulnChecker"
+
+# Ignorar carpetas completas que contienen mocks o reportes
+paths = [
+  '''reports/''',
+  '''fakers/''',
+  '''docs/JENKINS_SSH_GITHUB\.md''',
+  '''certs/''' # Habilítalo si las llaves mTLS son solo de desarrollo/pruebas
+]
+
+# Ignorar variables de entorno de ejemplo o claves públicas/falsas específicas
+regexes = [
+  '''AKIAIWNJYAX4CSVEH53A''', # AWS Token falso detectado en fakers
+]
