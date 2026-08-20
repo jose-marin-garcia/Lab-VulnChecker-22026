@@ -15,5 +15,5 @@ services:
       dockerfile: Dockerfile
     volumes: []
     # Producción sirve en 80; mismo puerto en host que en desarrollo (5173).
-    ports: !reset
+    ports: !override
       - '127.0.0.1:5173:80'

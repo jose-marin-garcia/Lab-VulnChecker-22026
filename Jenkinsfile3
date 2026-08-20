@@ -345,18 +345,11 @@ pipeline {
                     sh """
                         cd \${WORKSPACE}
 
-                        # Asegurar la detención y remoción explícita del frontend para liberar el puerto 5173
-                        docker stop vuln-frontend || true
-                        docker rm -f vuln-frontend || true
-
-                        # Bajar el stack removiendo contenedores huérfanos
+                        # Bajar todo de forma limpia
                         docker compose -f docker-compose.yml -f docker-compose.ci.yml down --remove-orphans
 
-                        # Limpiar redes que hayan quedado atascadas/sin uso
-                        docker network prune -f
-
-                        # Desplegar
-                        docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build db backend frontend
+                        # Desplegar los servicios
+                        docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build
                     """
                     echo ">>> Despliegue completado con éxito. Esperando que los servicios estén arriba..."
                 }
