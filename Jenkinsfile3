@@ -329,22 +329,15 @@ pipeline {
                     // 1. Limpieza inicial del entorno
                     sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
 
-                    // CORRECCIÓN CRÍTICA: Si Docker creó un directorio falso llamado init.sql, lo borramos y restauramos el archivo real de Git
-                    sh '''
-                        if [ -d "init.sql" ]; then
-                            echo "⚠️ Detectado directorio falso de init.sql. Corrigiendo..."
-                            rm -rf init.sql
-                            git checkout -- init.sql
-                        fi
-                    '''
-
                     // 2. Generación de certificados en el workspace actual
                     sh 'chmod +x generate-certs.sh'
                     sh './generate-certs.sh'
-                    
+
+                    // CORRECCIÓN DE PERMISOS: Conceder permisos de lectura global a las llaves del cliente
                     sh '''
                         if [ -d "certs" ]; then
-                            echo "Certificados creados con éxito."
+                            echo "Ajustando permisos de lectura para el Backend..."
+                            chmod 644 certs/client.crt certs/client.pk8 certs/ca.crt
                             ls -la certs
                         else
                             echo "ERROR: La carpeta certs no fue creada por el script." && exit 1
