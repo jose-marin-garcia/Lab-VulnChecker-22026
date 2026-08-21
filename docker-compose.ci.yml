@@ -12,7 +12,8 @@ services:
       context: ./vulncheckerbackend
       dockerfile: Dockerfile
     command: []
-    volumes: []
+    volumes:
+      - ${LOCAL_WORKSPACE:-.}/certs:/app/certs:ro
 
   frontend:
     build:
