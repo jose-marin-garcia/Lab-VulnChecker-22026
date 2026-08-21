@@ -359,7 +359,7 @@ pipeline {
                     // 4. Levantamiento de la infraestructura pasando las rutas y variables necesarias
                     // Nota: Agrega aquí las credenciales que tu DB o Backend requieran (ej. DB_PASSWORD)
                     withEnv([
-                        "LOCAL_WORKSPACE=${jobPath}",
+                        "LOCAL_WORKSPACE=${jobPath}"
                     ]) {
                         sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
                     
