@@ -2,6 +2,10 @@
 # Backend: usa imagen de producción (JAR, sin mvnw) para evitar "/app/mvnw: not found".
 # Frontend: usa imagen de producción (build + nginx), evita "package.json not found".
 services:
+  db:
+    volumes:
+      - ${LOCAL_WORKSPACE:-.}/certs:/mnt/certs:ro
+
   backend:
     build:
       context: ./vulncheckerbackend

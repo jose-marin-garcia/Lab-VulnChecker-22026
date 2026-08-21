@@ -325,16 +325,15 @@ pipeline {
             steps {
                 script {
                     echo ">>> Iniciando etapa de despliegue..."
-                    // Detener ejecuciones previas
+                    
+                    // 1. Limpieza inicial del entorno
                     sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
                     sh 'rm -rf certs'
 
-                    // Conceder permisos de ejecución al script y correrlo
+                    // 2. Generación de certificados en el workspace actual
                     sh 'chmod +x generate-certs.sh'
                     sh './generate-certs.sh'
                     
-                    // PostgreSQL requiere que server.key pertenezca a UID 999 (postgres)
-                    // y tenga permisos estrictos (600), o fallará al iniciar.
                     sh '''
                         if [ -d "certs" ]; then
                             echo "Certificados creados con éxito."
@@ -343,8 +342,28 @@ pipeline {
                             echo "ERROR: La carpeta certs no fue creada por el script." && exit 1
                         fi
                     '''
-                    // Levanta usando ambos archivos de configuración sin construir de nuevo
-                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
+
+                    // 3. Resolución segura de la ruta en el Host externo
+                    def hostWorkspace = sh(
+                        script: "docker inspect vuln-jenkins --format='{{range .Mounts}}{{if eq .Destination \"/var/jenkins_home\"}}{{.Source}}{{end}}{{end}}'", 
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Extraemos de forma segura el nombre exacto del directorio del workspace de Jenkins
+                    def workspaceDirName = env.WORKSPACE.substring(env.WORKSPACE.lastIndexOf('/') + 1)
+                    def jobPath = "${hostWorkspace}/workspace/${workspaceDirName}"
+                    
+                    echo "Ruta detectada de manera robusta en el Host: ${jobPath}"
+
+                    // 4. Levantamiento de la infraestructura pasando las rutas y variables necesarias
+                    // Nota: Agrega aquí las credenciales que tu DB o Backend requieran (ej. DB_PASSWORD)
+                    withEnv([
+                        "LOCAL_WORKSPACE=${jobPath}",
+                        "DB_USERNAME=vulnuser",
+                        "DB_PASSWORD=vulnpass" 
+                    ]) {
+                        sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
+                    }
                     
                     echo ">>> Despliegue completado con éxito. Esperando que los servicios estén arriba..."
                 }
