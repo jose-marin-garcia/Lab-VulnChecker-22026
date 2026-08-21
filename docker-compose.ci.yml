@@ -2,12 +2,18 @@
 # Backend: usa imagen de producción (JAR, sin mvnw) para evitar "/app/mvnw: not found".
 # Frontend: usa imagen de producción (build + nginx), evita "package.json not found".
 services:
+  db:
+    volumes:
+      - ${LOCAL_WORKSPACE:-.}/certs:/mnt/certs:ro
+      - ${LOCAL_WORKSPACE:-.}/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
   backend:
     build:
       context: ./vulncheckerbackend
       dockerfile: Dockerfile
     command: []
-    volumes: []
+    volumes:
+      - ${LOCAL_WORKSPACE:-.}/certs:/app/certs:ro
 
   frontend:
     build:
