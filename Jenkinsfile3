@@ -44,7 +44,7 @@ pipeline {
                         try {
                             checkout scm
                         } catch (Exception e) {
-                            error("Checkout falló: Original: ${e.message}")
+                            error("Checkout falló: Original: ${e.toString()}")
                         }
                     }
                 }
