@@ -111,23 +111,27 @@ pipeline {
                     }
                 }
 
-                stage('Backend Build & Test') {
-                    steps {
-                        script {
-                            dir('vulncheckerbackend') {
-                                if (!params.SKIP_JUNIT) {
-                                    echo ">>> Ejecutando Pruebas Unitarias y Cobertura..."
-                                    sh './mvnw clean test jacoco:report -q'
-                                } else {
-                                    echo ">>> Omitiendo pruebas unitarias. Compilando empaquetado..."
+                stage('Backend Flow') {
+                    stages {
+                        stage('Build Backend') {
+                            steps {
+                                dir('vulncheckerbackend') {
                                     sh './mvnw clean compile -q -DskipTests'
                                 }
                             }
                         }
-                    }
-                    post {
-                        always {
-                            junit allowEmptyResults: true, testResults: 'vulncheckerbackend/target/surefire-reports/*.xml'
+                        stage('Unit Tests') {
+                            when { expression { return !params.SKIP_JUNIT } }
+                            steps {
+                                dir('vulncheckerbackend') {
+                                    sh './mvnw test jacoco:report -q'
+                                }
+                            }
+                            post {
+                                always {
+                                    junit allowEmptyResults: true, testResults: 'vulncheckerbackend/target/surefire-reports/*.xml'
+                                }
+                            }
                         }
                     }
                 }
@@ -135,81 +139,86 @@ pipeline {
         }
         stage('Fase 2: Análisis de Seguridad y Contenedores') {
             parallel {
-                stage('Code Security (SCA & SAST)') {
-                    steps {
-                        script {
-                            // --- PASO 1: OWASP DEPENDENCY CHECK ---
-                            if (!params.SKIP_DEPENDENCY_CHECK) {
-                                dir('vulncheckerbackend') {
-                                    sh './mvnw dependency:copy-dependencies -DoutputDirectory=target/dependency -q'
-                                }
-                                
-                                echo 'OWASP Dependency Check: backend descarga NVD.'
-                                timeout(time: 90, unit: 'MINUTES') {
-                                    def nvdKey = (params.NVD_API_KEY != null && params.NVD_API_KEY != '') ? params.NVD_API_KEY : ''
-                                    if (nvdKey == '' && fileExists('.env')) {
-                                        readFile('.env').split('\n').each { line ->
-                                            def t = line.trim()
-                                            if (t.startsWith('NVD_API_KEY=')) {
-                                                nvdKey = t.substring(12).trim()
-                                                if (nvdKey.size() >= 2 && ((nvdKey.startsWith('"') && nvdKey.endsWith('"')) || (nvdKey.startsWith("'") && nvdKey.endsWith("'")))) {
-                                                    nvdKey = nvdKey[1..-2]
+                stage('Code Security Flow') {
+                    stages {
+                        stage('OWASP Dependency Check') {
+                            when { expression { return !params.SKIP_DEPENDENCY_CHECK } }
+                            steps {
+                                script {
+                                    dir('vulncheckerbackend') {
+                                        sh './mvnw dependency:copy-dependencies -DoutputDirectory=target/dependency -q'
+                                    }
+                                    
+                                    echo 'OWASP Dependency Check: backend descarga NVD.'
+                                    timeout(time: 90, unit: 'MINUTES') {
+                                        def nvdKey = (params.NVD_API_KEY != null && params.NVD_API_KEY != '') ? params.NVD_API_KEY : ''
+                                        if (nvdKey == '' && fileExists('.env')) {
+                                            readFile('.env').split('\n').each { line ->
+                                                def t = line.trim()
+                                                if (t.startsWith('NVD_API_KEY=')) {
+                                                    nvdKey = t.substring(12).trim()
+                                                    if (nvdKey.size() >= 2 && ((nvdKey.startsWith('"') && nvdKey.endsWith('"')) || (nvdKey.startsWith("'") && nvdKey.endsWith("'")))) {
+                                                        nvdKey = nvdKey[1..-2]
+                                                    }
                                                 }
+                                            }
+                                        }
+                                        
+                                        def failCvss = params.ENABLE_SECURITY_GATES ? "7" : "10.01"
+                                        
+                                        withEnv(["NVD_API_KEY=${nvdKey}"]) {
+                                            dir('vulncheckerbackend') {
+                                                sh """
+                                                    echo ">>> Running Dependency Check (Backend)"
+                                                    docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) -e NVD_API_KEY=\$NVD_API_KEY -v vulnchecker-owasp-data:/usr/share/dependency-check/data:rw owasp/dependency-check:latest --scan \${WORKSPACE}/vulncheckerbackend --format HTML --format JSON --out /jenkins-reports/latest/dependency-check-backend --project vulnchecker-backend --failOnCVSS ${failCvss} \${NVD_API_KEY:+--nvdApiKey \$NVD_API_KEY} || true
+                                                """
+                                            }
+                                            dir('frontend') {
+                                                sh """
+                                                    echo ">>> Running Dependency Check (Frontend)"
+                                                    docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) -v vulnchecker-owasp-data:/usr/share/dependency-check/data:rw owasp/dependency-check:latest --scan \${WORKSPACE}/frontend --noupdate --format HTML --format JSON --out /jenkins-reports/latest/dependency-check-frontend --project vulnchecker-frontend --failOnCVSS ${failCvss} || true
+                                                """
                                             }
                                         }
                                     }
                                     
-                                    def failCvss = params.ENABLE_SECURITY_GATES ? "7" : "10.01"
-                                    
-                                    withEnv(["NVD_API_KEY=${nvdKey}"]) {
-                                        dir('vulncheckerbackend') {
-                                            sh """
-                                                echo ">>> Running Dependency Check (Backend)"
-                                                docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) -e NVD_API_KEY=\$NVD_API_KEY -v vulnchecker-owasp-data:/usr/share/dependency-check/data:rw owasp/dependency-check:latest --scan \${WORKSPACE}/vulncheckerbackend --format HTML --format JSON --out /jenkins-reports/latest/dependency-check-backend --project vulnchecker-backend --failOnCVSS ${failCvss} \${NVD_API_KEY:+--nvdApiKey \$NVD_API_KEY} || true
-                                            """
-                                        }
-                                        dir('frontend') {
-                                            sh """
-                                                echo ">>> Running Dependency Check (Frontend)"
-                                                docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) -v vulnchecker-owasp-data:/usr/share/dependency-check/data:rw owasp/dependency-check:latest --scan \${WORKSPACE}/frontend --noupdate --format HTML --format JSON --out /jenkins-reports/latest/dependency-check-frontend --project vulnchecker-frontend --failOnCVSS ${failCvss} || true
-                                            """
-                                        }
+                                    sh """
+                                        mkdir -p \${WORKSPACE}/reports
+                                        cp -r /jenkins-reports/latest/dependency-check-backend \${WORKSPACE}/reports/ 2>/dev/null || true
+                                        cp -r /jenkins-reports/latest/dependency-check-frontend \${WORKSPACE}/reports/ 2>/dev/null || true
+                                    """
+                                    if (fileExists('reports/dependency-check-backend/dependency-check-report.html') || fileExists('reports/dependency-check-frontend/dependency-check-report.html')) {
+                                        archiveArtifacts artifacts: 'reports/**/dependency-check-report.html', allowEmptyArchive: true
                                     }
-                                }
-                                
-                                sh """
-                                    mkdir -p \${WORKSPACE}/reports
-                                    cp -r /jenkins-reports/latest/dependency-check-backend \${WORKSPACE}/reports/ 2>/dev/null || true
-                                    cp -r /jenkins-reports/latest/dependency-check-frontend \${WORKSPACE}/reports/ 2>/dev/null || true
-                                """
-                                if (fileExists('reports/dependency-check-backend/dependency-check-report.html') || fileExists('reports/dependency-check-frontend/dependency-check-report.html')) {
-                                    archiveArtifacts artifacts: 'reports/**/dependency-check-report.html', allowEmptyArchive: true
                                 }
                             }
-
-                            // --- PASO 2: SONARQUBE ANALYSIS ---
-                            if (!params.SKIP_SONAR) {
-                                withSonarQubeEnv(params.SONAR_SERVER_NAME?.trim() ?: 'SonarQube') {
-                                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
-                                        dir('vulncheckerbackend') {
-                                            sh """
-                                                ./mvnw sonar:sonar -q \\
-                                                    -Dsonar.host.url=\${SONAR_HOST_URL:-\${SONAR_HOST}} \\
-                                                    -Dsonar.token=\${SONAR_TOKEN} \\
-                                                    -Dsonar.projectKey=vulnchecker-backend \\
-                                                    -Dsonar.projectName=vulnchecker-backend \\
-                                                    -Dsonar.java.binaries=target/classes \\
-                                                    -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \\
-                                                    -DskipTests
-                                            """
+                        }
+                        stage('SonarQube Analysis') {
+                            when { expression { return !params.SKIP_SONAR } }
+                            steps {
+                                script {
+                                    withSonarQubeEnv(params.SONAR_SERVER_NAME?.trim() ?: 'SonarQube') {
+                                        withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                                            dir('vulncheckerbackend') {
+                                                sh """
+                                                    ./mvnw sonar:sonar -q \\
+                                                        -Dsonar.host.url=\${SONAR_HOST_URL:-\${SONAR_HOST}} \\
+                                                        -Dsonar.token=\${SONAR_TOKEN} \\
+                                                        -Dsonar.projectKey=vulnchecker-backend \\
+                                                        -Dsonar.projectName=vulnchecker-backend \\
+                                                        -Dsonar.java.binaries=target/classes \\
+                                                        -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \\
+                                                        -DskipTests
+                                                """
+                                            }
                                         }
                                     }
-                                }
-                                if (params.ENABLE_SECURITY_GATES) {
-                                    timeout(time: 5, unit: 'MINUTES') {
-                                        def qg = waitForQualityGate()
-                                        if (qg.status != 'OK') {
-                                            error("[SECURITY GATE FAIL] SonarQube Quality Gate no superado: \${qg.status}")
+                                    if (params.ENABLE_SECURITY_GATES) {
+                                        timeout(time: 5, unit: 'MINUTES') {
+                                            def qg = waitForQualityGate()
+                                            if (qg.status != 'OK') {
+                                                error("[SECURITY GATE FAIL] SonarQube Quality Gate no superado: \${qg.status}")
+                                            }
                                         }
                                     }
                                 }
@@ -217,23 +226,20 @@ pipeline {
                         }
                     }
                 }
+
                 stage('Containerization (Docker & Trivy)') {
                     steps {
                         script {
-                            // --- PASO 1: BUILD IMAGES ---
                             sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml build backend frontend'
 
-                            // --- PASO 2: TRIVY SCANNING ---
                             if (!params.SKIP_TRIVY) {
                                 def exitCode = (params.ENABLE_SECURITY_GATES) ? '1' : '0'
 
                                 sh """
-                                    # Scan en consola para el Backend
                                     docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) \\
                                         -v /var/run/docker.sock:/var/run/docker.sock \\
                                         aquasec/trivy:latest image --timeout 15m --severity HIGH,CRITICAL --ignore-unfixed --exit-code ${exitCode} --format table \${BACKEND_IMAGE}
 
-                                    # Scan en consola para el Frontend
                                     docker run --rm --volumes-from vuln-jenkins --user \$(id -u):\$(id -g) \\
                                         -v /var/run/docker.sock:/var/run/docker.sock \\
                                         aquasec/trivy:latest image --timeout 15m --severity HIGH,CRITICAL --ignore-unfixed --exit-code ${exitCode} --format table \${FRONTEND_IMAGE}
