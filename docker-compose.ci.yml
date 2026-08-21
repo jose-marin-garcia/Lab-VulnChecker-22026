@@ -5,6 +5,7 @@ services:
   db:
     volumes:
       - ${LOCAL_WORKSPACE:-.}/certs:/mnt/certs:ro
+      - ${LOCAL_WORKSPACE:-.}/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
 
   backend:
     build:

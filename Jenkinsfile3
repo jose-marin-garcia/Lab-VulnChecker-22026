@@ -329,6 +329,15 @@ pipeline {
                     // 1. Limpieza inicial del entorno
                     sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
 
+                    // CORRECCIÓN CRÍTICA: Si Docker creó un directorio falso llamado init.sql, lo borramos y restauramos el archivo real de Git
+                    sh '''
+                        if [ -d "init.sql" ]; then
+                            echo "⚠️ Detectado directorio falso de init.sql. Corrigiendo..."
+                            rm -rf init.sql
+                            git checkout -- init.sql
+                        fi
+                    '''
+
                     // 2. Generación de certificados en el workspace actual
                     sh 'chmod +x generate-certs.sh'
                     sh './generate-certs.sh'
