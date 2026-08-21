@@ -326,14 +326,14 @@ pipeline {
                 script {
                     echo ">>> Iniciando etapa de despliegue..."
                     
-                    // 1. Limpieza inicial del entorno
+                    // Limpieza inicial del entorno
                     sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
 
-                    // 2. Generación de certificados en el workspace actual
+                    // Generación de certificados
                     sh 'chmod +x generate-certs.sh'
                     sh './generate-certs.sh'
 
-                    // CORRECCIÓN DE PERMISOS: Conceder permisos de lectura global a las llaves del cliente
+                    // Conceder permisos de lectura global a las llaves del cliente
                     sh '''
                         if [ -d "certs" ]; then
                             echo "Ajustando permisos de lectura para el Backend..."
@@ -344,29 +344,56 @@ pipeline {
                         fi
                     '''
 
-                    // 3. Resolución segura de la ruta en el Host externo
+                    // Resolución de la ruta en el Host externo (Docker-out-of-Docker)
                     def hostWorkspace = sh(
                         script: "docker inspect vuln-jenkins --format='{{range .Mounts}}{{if eq .Destination \"/var/jenkins_home\"}}{{.Source}}{{end}}{{end}}'", 
                         returnStdout: true
                     ).trim()
                     
-                    // Extraemos de forma segura el nombre exacto del directorio del workspace de Jenkins
                     def workspaceDirName = env.WORKSPACE.substring(env.WORKSPACE.lastIndexOf('/') + 1)
                     def jobPath = "${hostWorkspace}/workspace/${workspaceDirName}"
                     
                     echo "Ruta detectada de manera robusta en el Host: ${jobPath}"
 
-                    // 4. Levantamiento de la infraestructura pasando las rutas y variables necesarias
-                    withEnv([
-                        "LOCAL_WORKSPACE=${jobPath}"
-                    ]) {
+                    // Levantar servicios pasando la variable de entorno del Host
+                    withEnv(["LOCAL_WORKSPACE=${jobPath}"]) {
                         sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
                     }
+
+                    // BLOQUE DE ESPERA
+                    def maxRetries = 30
+                    def retryInterval = 3
+                    def isHealthy = false
+
+                    echo ">>> Verificando el inicio de Spring Boot mediante su puerto HTTP..."
                     
-                    echo ">>> Despliegue completado con éxito. Esperando que los servicios estén arriba..."
+                    for (int i = 0; i < maxRetries; i++) {
+                        // Intentamos conectarnos al puerto 8080 del backend de forma interna
+                        def exitCode = sh(
+                            script: "docker exec vuln-backend wget --no-check-certificate --spider -q http://localhost:8080/actuator/health",
+                            returnStatus: true
+                        )
+
+                        if (exitCode == 0) {
+                            echo ">>> [¡ÉXITO!] El Backend está completamente activo, arriba y respondiendo solicitudes."
+                            isHealthy = true
+                            break
+                        }
+
+                        echo "El backend se está inicializando (Flyway/Spring). Esperando ${retryInterval} segundos... (${i + 1}/${maxRetries})"
+                        sleep(retryInterval)
+                    }
+
+                    if (!isHealthy) {
+                        echo "❌ [ERROR] El backend no respondió en el tiempo límite (90 segundos)."
+                        echo ">>> Mostrando logs de diagnóstico para depuración:"
+                        sh 'docker compose logs backend --tail=50'
+                        error("Despliegue fallido: El backend se quedó colgado o no inició correctamente.")
+                    }
                 }
             }
         }
+
 
         stage('DAST - OWASP ZAP') {
             when { expression { return !params.SKIP_ZAP } }
