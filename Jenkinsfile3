@@ -356,15 +356,8 @@ pipeline {
                     
                     echo "Ruta detectada de manera robusta en el Host: ${jobPath}"
 
-                    // 4. Levantamiento de la infraestructura pasando las rutas y variables necesarias
-                    // Nota: Agrega aquí las credenciales que tu DB o Backend requieran (ej. DB_PASSWORD)
-                    withEnv([
-                        "LOCAL_WORKSPACE=${jobPath}",
-                        "DB_USERNAME=vulnuser",
-                        "DB_PASSWORD=vulnpass" 
-                    ]) {
-                        sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
-                    }
+                    // Levantar servicios
+                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
                     
                     echo ">>> Despliegue completado con éxito. Esperando que los servicios estén arriba..."
                 }
