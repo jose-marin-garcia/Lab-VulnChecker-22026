@@ -325,15 +325,27 @@ pipeline {
             steps {
                 script {
                     echo ">>> Iniciando etapa de despliegue..."
-                    sh """
-                        cd \${WORKSPACE}
+                    // Detener ejecuciones previas
+                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
+                    sh 'rm -rf certs'
 
-                        # Bajar todo de forma limpia
-                        docker compose -f docker-compose.yml -f docker-compose.ci.yml down --remove-orphans
-
-                        # Desplegar los servicios
-                        docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build
-                    """
+                    // Conceder permisos de ejecución al script y correrlo
+                    sh 'chmod +x generate-certs.sh'
+                    sh './generate-certs.sh'
+                    
+                    // PostgreSQL requiere que server.key pertenezca a UID 999 (postgres)
+                    // y tenga permisos estrictos (600), o fallará al iniciar.
+                    sh '''
+                        if [ -d "certs" ]; then
+                            echo "Certificados creados con éxito."
+                            ls -la certs
+                        else
+                            echo "ERROR: La carpeta certs no fue creada por el script." && exit 1
+                        fi
+                    '''
+                    // Levanta usando ambos archivos de configuración sin construir de nuevo
+                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d --no-build'
+                    
                     echo ">>> Despliegue completado con éxito. Esperando que los servicios estén arriba..."
                 }
             }
