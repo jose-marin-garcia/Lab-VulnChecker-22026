@@ -113,13 +113,15 @@ pipeline {
 
                 stage('Backend Build & Test') {
                     steps {
-                        dir('vulncheckerbackend') {
-                            if (!params.SKIP_JUNIT) {
-                                echo ">>> Ejecutando Pruebas Unitarias y Cobertura..."
-                                sh './mvnw clean test jacoco:report -q'
-                            } else {
-                                echo ">>> Omitiendo pruebas unitarias. Compilando empaquetado..."
-                                sh './mvnw clean compile -q -DskipTests'
+                        script {
+                            dir('vulncheckerbackend') {
+                                if (!params.SKIP_JUNIT) {
+                                    echo ">>> Ejecutando Pruebas Unitarias y Cobertura..."
+                                    sh './mvnw clean test jacoco:report -q'
+                                } else {
+                                    echo ">>> Omitiendo pruebas unitarias. Compilando empaquetado..."
+                                    sh './mvnw clean compile -q -DskipTests'
+                                }
                             }
                         }
                     }
