@@ -271,7 +271,7 @@ pipeline {
                     echo ">>> Iniciando etapa de despliegue seguro..."
                     
                     // 1. Limpieza inicial del entorno
-                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans'
+                    sh 'docker compose -f docker-compose.yml -f docker-compose.ci.yml down --remove-orphans'
                     
                     // 2. Generación de certificados en el espacio actual
                     sh 'chmod +x generate-certs.sh && ./generate-certs.sh'
