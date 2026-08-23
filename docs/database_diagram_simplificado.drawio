@@ -1,0 +1,175 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="Qn35Ukq6CQr9MFzySLzR" name="Página-1">
+    <mxGraphModel dx="1179" dy="793" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="1">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1a237e;" value="VulnChecker – Diagrama de Base de Datos" vertex="1">
+          <mxGeometry height="40" width="1020" x="80" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_hdr" parent="1" style="swimlane;startSize=30;fillColor=#1a237e;fontColor=#ffffff;strokeColor=#1a237e;fontSize=13;fontStyle=1;horizontal=1;" value="users (Usuarios)" vertex="1">
+          <mxGeometry height="280" width="300" x="80" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="users_id" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="users_email" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=left;spacingLeft=8;fontSize=11;" value="UQ  email : VARCHAR(255) NOT NULL UNIQUE" vertex="1">
+          <mxGeometry height="22" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="users_pass" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="password : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="76" as="geometry" />
+        </mxCell>
+        <mxCell id="users_fname" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="first_name : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="users_plname" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="paternal_last_name : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="users_mlname" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="maternal_last_name : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="users_role" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="role : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="users_active" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="active : BOOLEAN NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="186" as="geometry" />
+        </mxCell>
+        <mxCell id="users_agent_id" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="assigned_agent_id : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="208" as="geometry" />
+        </mxCell>
+        <mxCell id="users_agent_name" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="assigned_agent_name : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="users_created" parent="users_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="created_at : TIMESTAMP(6)" vertex="1">
+          <mxGeometry height="22" width="300" y="252" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_hdr" parent="1" style="swimlane;startSize=30;fillColor=#b71c1c;fontColor=#ffffff;strokeColor=#b71c1c;fontSize=13;fontStyle=1;" value="infrastructure_credentials" vertex="1">
+          <mxGeometry height="170" width="300" x="80" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_id" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_name" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="name : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_user_id" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="FK  user_id : BIGINT NOT NULL -&gt; users.id" vertex="1">
+          <mxGeometry height="22" width="300" y="76" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_wazuh_ip" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="wazuh_ip : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_wazuh_user" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="wazuh_user : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="ic_wazuh_pass" parent="ic_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="wazuh_password : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="ac_hdr" parent="1" style="swimlane;startSize=30;fillColor=#e65100;fontColor=#ffffff;strokeColor=#e65100;fontSize=13;fontStyle=1;" value="agent_credentials" vertex="1">
+          <mxGeometry height="110" width="300" x="440" y="440" as="geometry" />
+        </mxCell>
+        <mxCell id="ac_id" parent="ac_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ac_agent_id" parent="ac_hdr" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=left;spacingLeft=8;fontSize=11;" value="UQ  agent_id : VARCHAR(255) UNIQUE" vertex="1">
+          <mxGeometry height="22" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="ac_cred_id" parent="ac_hdr" style="text;html=1;strokeColor=none;fillColor=#dae8fc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="FK  credential_id : BIGINT -&gt; ic.id" vertex="1">
+          <mxGeometry height="22" width="300" y="76" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_hdr" parent="1" style="swimlane;startSize=30;fillColor=#1b5e20;fontColor=#ffffff;strokeColor=#1b5e20;fontSize=13;fontStyle=1;" value="vulnerabilities (Vulnerabilidades)" vertex="1">
+          <mxGeometry height="300" width="300" x="440" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_id" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_agent_id" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="agent_id : VARCHAR(255)  [vínculo lógico]" vertex="1">
+          <mxGeometry height="22" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_agent_name" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="agent_name : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="76" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_agent_group" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="agent_group : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_cve" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="cve : VARCHAR(255) NOT NULL" vertex="1">
+          <mxGeometry height="22" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_cvss" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="cvss3_score : DOUBLE PRECISION" vertex="1">
+          <mxGeometry height="22" width="300" y="142" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_severity" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="severity : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="164" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_status" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="status : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="186" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_package_name" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="package_name : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="208" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_package_version" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="package_version : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_detection_time" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="detection_time : TIMESTAMP(6)" vertex="1">
+          <mxGeometry height="22" width="300" y="252" as="geometry" />
+        </mxCell>
+        <mxCell id="vuln_resolved_at" parent="vuln_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="resolved_at : TIMESTAMP(6)" vertex="1">
+          <mxGeometry height="22" width="300" y="274" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_hdr" parent="1" style="swimlane;startSize=30;fillColor=#004d40;fontColor=#ffffff;strokeColor=#004d40;fontSize=13;fontStyle=1;" value="vulnerability_snapshots" vertex="1">
+          <mxGeometry height="208" width="300" x="800" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_id" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_sd" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=#fff2cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  snapshot_date : TIMESTAMP(6)  [Timescale PK]" vertex="1">
+          <mxGeometry height="24" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_agent_id" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="agent_id : VARCHAR(255)  [vínculo lógico]" vertex="1">
+          <mxGeometry height="22" width="300" y="78" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_critical" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="critical_count : INTEGER" vertex="1">
+          <mxGeometry height="22" width="300" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_high" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="high_count : INTEGER" vertex="1">
+          <mxGeometry height="22" width="300" y="122" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_medium" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="medium_count : INTEGER" vertex="1">
+          <mxGeometry height="22" width="300" y="144" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_low" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="low_count : INTEGER" vertex="1">
+          <mxGeometry height="22" width="300" y="166" as="geometry" />
+        </mxCell>
+        <mxCell id="vs_total" parent="vs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="total_count : INTEGER" vertex="1">
+          <mxGeometry height="22" width="300" y="188" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_hdr" parent="1" style="swimlane;startSize=30;fillColor=#4a148c;fontColor=#ffffff;strokeColor=#4a148c;fontSize=13;fontStyle=1;" value="report_signatures" vertex="1">
+          <mxGeometry height="150" width="300" x="800" y="550" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_id" parent="rs_hdr" style="text;html=1;strokeColor=none;fillColor=#ffe6cc;align=left;spacingLeft=8;fontSize=11;fontStyle=1;" value="PK  id : BIGINT (IDENTITY)" vertex="1">
+          <mxGeometry height="24" width="300" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_name" parent="rs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="report_name : VARCHAR(255)" vertex="1">
+          <mxGeometry height="22" width="300" y="54" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_hash" parent="rs_hdr" style="text;html=1;strokeColor=none;fillColor=#d5e8d4;align=left;spacingLeft=8;fontSize=11;" value="UQ  sha256_hash : VARCHAR(64) UNIQUE" vertex="1">
+          <mxGeometry height="22" width="300" y="76" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_sig" parent="rs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="digital_signature : TEXT" vertex="1">
+          <mxGeometry height="22" width="300" y="98" as="geometry" />
+        </mxCell>
+        <mxCell id="rs_date" parent="rs_hdr" style="text;html=1;strokeColor=none;fillColor=none;align=left;spacingLeft=8;fontSize=11;" value="signed_at : TIMESTAMP(6)" vertex="1">
+          <mxGeometry height="22" width="300" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="rel1" edge="1" parent="1" source="users_hdr" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;endArrow=ERmany;startArrow=ERone;strokeColor=#1a237e;strokeWidth=2;fontColor=#1a237e;fontStyle=1;fontSize=10;" target="ic_hdr" value="user_id -&gt; users.id (1:N)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel2" edge="1" parent="1" source="ic_hdr" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=ERmany;startArrow=ERone;strokeColor=#b71c1c;strokeWidth=2;fontColor=#b71c1c;fontStyle=1;fontSize=10;" target="ac_hdr" value="credential_id -&gt; id (1:N)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel3" edge="1" parent="1" source="ac_hdr" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;endArrow=open;startArrow=none;strokeColor=#e65100;strokeWidth=1.5;dashed=1;fontColor=#e65100;fontStyle=2;fontSize=10;" target="vuln_hdr" value="agent_id (Lógico)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
