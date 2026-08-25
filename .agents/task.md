@@ -1,5 +1,0 @@
-- [ ] Crear script de migración `V5__timeline_continuous_aggregate.sql` para la hypertable y el Continuous Aggregate
-- [ ] Modificar `TimelineService.java` para utilizar el Continuous Aggregate `mv_timeline_monthly_cagg`
-- [ ] Ejecutar migraciones y reconstruir la base de datos para validar los cambios
-- [ ] Validar rendimiento ejecutando el script de benchmark o pruebas de integración
-- [ ] Crear el reporte final `walkthrough.md`

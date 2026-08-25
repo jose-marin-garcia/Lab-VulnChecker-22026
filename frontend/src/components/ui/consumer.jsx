@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Send, Loader2 } from 'lucide-react';
 import { apiClient } from '../../config/auth';
 
@@ -15,7 +15,7 @@ export default function Consumer() {
     const [error, setError] = useState(null);
 
     // --- FUNCIÓN EXTRAÍDA PARA PODER REUTILIZARLA ---
-    const fetchCredentials = async () => {
+    const fetchCredentials = useCallback(async () => {
         if (!userId) return;
         try {
             const response = await apiClient.get(`${API_BASE_URL}/api/infra-credentials/user/${userId}`);
@@ -26,7 +26,7 @@ export default function Consumer() {
         } catch (error) {
             console.error('Error cargando credenciales:', error);
         }
-    };
+    }, [userId]);
 
     // Polling de progreso
     useEffect(() => {
@@ -59,7 +59,7 @@ export default function Consumer() {
     // Carga inicial al montar el componente o cambiar de usuario
     useEffect(() => {
         fetchCredentials();
-    }, [userId]);
+    }, [fetchCredentials]);
 
     // Escuchar el evento de recarga desde otras páginas
     useEffect(() => {
@@ -72,7 +72,7 @@ export default function Consumer() {
         return () => {
             window.removeEventListener('reloadCredentials', handleCustomReload);
         };
-    }, [userId]);
+    }, [fetchCredentials]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

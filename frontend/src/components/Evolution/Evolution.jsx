@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AlertCircle, RefreshCcw, Search } from 'lucide-react';
-import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
 import './Evolution.css';
 
@@ -108,10 +107,6 @@ const Evolution = () => {
         fetchEvolution();
     }, [fetchEvolution]);
 
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [agentFilter, search, metric, columnCount]);
-
     const metricTitle = useMemo(() => metricLabels[metric] || metricLabels.critical, [metric]);
 
     const handleSort = (key) => {
@@ -155,11 +150,20 @@ const Evolution = () => {
                             type="text"
                             placeholder="Buscar por agente o nombre..."
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                setSearch(event.target.value);
+                                setCurrentPage(1);
+                            }}
                         />
                     </label>
 
-                    <select value={agentFilter} onChange={(event) => setAgentFilter(event.target.value)}>
+                    <select
+                        value={agentFilter}
+                        onChange={(event) => {
+                            setAgentFilter(event.target.value);
+                            setCurrentPage(1);
+                        }}
+                    >
                         <option value="all">Todos los agentes</option>
                         {agentOptions.map((agent) => (
                             <option key={agent} value={agent}>
@@ -168,7 +172,13 @@ const Evolution = () => {
                         ))}
                     </select>
 
-                    <select value={metric} onChange={(event) => setMetric(event.target.value)}>
+                    <select
+                        value={metric}
+                        onChange={(event) => {
+                            setMetric(event.target.value);
+                            setCurrentPage(1);
+                        }}
+                    >
                         {metricOptions.map((option) => (
                             <option key={option} value={option}>
                                 {metricLabels[option] || option}
@@ -176,7 +186,13 @@ const Evolution = () => {
                         ))}
                     </select>
 
-                    <select value={columnCount} onChange={(event) => setColumnCount(Number(event.target.value))}>
+                    <select
+                        value={columnCount}
+                        onChange={(event) => {
+                            setColumnCount(Number(event.target.value));
+                            setCurrentPage(1);
+                        }}
+                    >
                         {columnOptions.map((option) => (
                             <option key={option} value={option}>
                                 Últimos {option} snapshots

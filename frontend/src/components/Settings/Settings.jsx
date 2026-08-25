@@ -4,7 +4,6 @@ import {
     ShieldCheck, Lock, User, Server, Database, Edit2, X,
     Users, Check, Trash2, UserCheck, List as ListIcon
 } from 'lucide-react';
-import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
 import './Settings.css';
 

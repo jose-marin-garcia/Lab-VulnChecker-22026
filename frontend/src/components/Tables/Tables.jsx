@@ -65,7 +65,6 @@ const Tables = ({
   });
   const [totalPages, setTotalPages] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
-  const [severityOptions, setSeverityOptions] = useState([]);
   const [statusOptions, setStatusOptions] = useState([]);
   const effectiveHighPriorityOnly = lockHighPriority || highPriorityOnly;
 
@@ -75,9 +74,6 @@ const Tables = ({
         const res = await apiClient.get(FILTERS_URL);
         if (!res.ok) return;
         const json = await res.json();
-        setSeverityOptions(
-          Array.isArray(json?.severities) ? json.severities : [],
-        );
         setStatusOptions(
           Array.isArray(json?.statuses) ? json.statuses : [],
         );

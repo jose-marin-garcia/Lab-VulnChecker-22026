@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Database, Plus, Trash2, ArrowLeft, Send, Loader2 } from 'lucide-react'; // Cambié ShieldCheck por Loader2 para el loading
+import { Database, Plus, Trash2, ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { buildApiUrl } from '../../config/api';
 import { apiClient } from '../../config/auth';
 import './Consumer.css';
 
